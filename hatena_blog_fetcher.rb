@@ -201,26 +201,47 @@ class HatenaBlogFetcher
     doc = REXML::Document.new(xml_body)
     entry = doc.root
 
-    # タイトル取得
-    title = entry.elements["title"]&.text || "タイトルなし"
-
-    # 本文取得（Markdown形式）
-    content_element = entry.elements["content"]
-    content = if content_element
-                content_element.text&.rstrip
-              else
-                "本文なし"
-              end
-
-    # 投稿日取得
-    published = entry.elements["published"]&.text
-    published_date = published ? Time.parse(published).strftime("%Y-%m-%d %H:%M:%S") : "投稿日不明"
-
     {
-      title: title,
-      content: content,
-      published: published_date
+      title: extract_title_from_entry(entry),
+      content: extract_content_from_entry(entry),
+      published: extract_published_date_from_entry(entry),
+      url: extract_url_from_entry(entry)
     }
+  end
+
+  def extract_title_from_entry(entry)
+    entry.elements["title"]&.text || "タイトルなし"
+  end
+
+  def extract_content_from_entry(entry)
+    content_element = entry.elements["content"]
+    return "本文なし" unless content_element
+
+    content_element.text&.rstrip || "本文なし"
+  end
+
+  def extract_published_date_from_entry(entry)
+    published = entry.elements["published"]&.text
+    return "投稿日時不明" unless published
+
+    Time.parse(published).strftime("%Y-%m-%d %H:%M:%S")
+  end
+
+  def extract_url_from_entry(entry)
+    # alternateリンクを探す（ブログ記事のURL）
+    alternate_link = entry.elements['link[@rel="alternate"]']
+    return alternate_link.attributes["href"] if alternate_link&.attributes&.[]("href")
+
+    # alternateがない場合はidから構築
+    id_element = entry.elements["id"]
+    return nil unless id_element
+
+    id_text = id_element.text
+    return nil unless id_text
+
+    entry_id = id_text.split("-").last
+    # デフォルトのURL形式で構築
+    "https://#{BLOG_ID}/entry/#{entry_id}"
   end
 end
 
@@ -274,8 +295,12 @@ class CommandLineInterface
       options[:title_only] = true
     end
 
-    opts.on("-d", "--date", "投稿日のみを出力") do
+    opts.on("-d", "--date", "投稿日時のみを出力") do
       options[:date_only] = true
+    end
+
+    opts.on("-u", "--url", "URLのみを出力") do
+      options[:url_only] = true
     end
   end
 
@@ -300,6 +325,8 @@ class CommandLineInterface
       output_title(entry_data)
     elsif options[:date_only]
       output_date(entry_data)
+    elsif options[:url_only]
+      output_url(entry_data)
     else
       output_full_format(entry_data)
     end
@@ -313,6 +340,10 @@ class CommandLineInterface
     puts entry_data[:title]
   end
 
+  def output_url(entry_data)
+    puts entry_data[:url]
+  end
+
   def output_date(entry_data)
     puts entry_data[:published]
   end
@@ -320,7 +351,8 @@ class CommandLineInterface
   def output_full_format(entry_data)
     puts "=" * 60
     puts "タイトル: #{entry_data[:title]}"
-    puts "投稿日: #{entry_data[:published]}"
+    puts "投稿日時: #{entry_data[:published]}"
+    puts "URL: #{entry_data[:url]}"
     puts "=" * 60
     puts "本文（Markdown）:"
     puts "-" * 60
