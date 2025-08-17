@@ -48,6 +48,9 @@ RSpec/AnyInstance:
 RSpec/MultipleExpectations:
   Max: 5
 
+RSpec/ExampleLength:
+  Max: 6
+
 Metrics/BlockLength:
   Exclude:
     - 'spec/**/*'

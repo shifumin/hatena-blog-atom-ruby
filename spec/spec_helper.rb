@@ -4,6 +4,16 @@ require "bundler/setup"
 require "webmock/rspec"
 require_relative "../hatena_blog_fetcher"
 
+# Helper method for capturing stdout
+def capture_stdout
+  old_stdout = $stdout
+  $stdout = StringIO.new
+  yield
+  $stdout.string
+ensure
+  $stdout = old_stdout
+end
+
 RSpec.configure do |config|
   config.expect_with :rspec do |expectations|
     expectations.include_chain_clauses_in_custom_matcher_descriptions = true
