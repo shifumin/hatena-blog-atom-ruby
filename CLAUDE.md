@@ -110,6 +110,9 @@ Handles CLI interaction and output formatting:
 - Added test for API errors during pagination
 - Fixed issue with trailing blank lines in content output
 - Separated CLI logic into dedicated CommandLineInterface class
+- Fixed time matching for date-based URLs:
+  - Corrected HHMMSS to seconds conversion in `time_matches?` method
+  - Increased time tolerance from 10 seconds to 30 minutes for better flexibility
 
 ### Testing Coverage
 The project has comprehensive test coverage with RSpec:
