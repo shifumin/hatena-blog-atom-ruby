@@ -1,0 +1,59 @@
+plugins:
+  - rubocop-rspec
+  - rubocop-performance
+
+AllCops:
+  NewCops: enable
+  SuggestExtensions: false
+  TargetRubyVersion: 3.4
+
+# Style用の設定
+Style/StringLiterals:
+  Enabled: true
+  EnforcedStyle: double_quotes
+
+Style/Documentation:
+  Enabled: false
+
+# Layout用の設定
+Layout/LineLength:
+  Max: 120
+
+# Metrics用の設定
+Metrics/MethodLength:
+  Max: 30
+
+Metrics/AbcSize:
+  Max: 30
+
+Metrics/CyclomaticComplexity:
+  Max: 10
+
+Metrics/PerceivedComplexity:
+  Max: 10
+
+Metrics/ClassLength:
+  Enabled: false
+
+# RSpec用の設定
+RSpec/MultipleMemoizedHelpers:
+  Max: 10
+
+RSpec/NestedGroups:
+  Max: 4
+
+RSpec/AnyInstance:
+  Enabled: false
+
+RSpec/MultipleExpectations:
+  Max: 5
+
+Metrics/BlockLength:
+  Exclude:
+    - 'spec/**/*'
+    - 'test/**/*'
+  Max: 25
+  CountAsOne:
+    - 'array'
+    - 'hash'
+    - 'heredoc'
