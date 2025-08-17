@@ -11,7 +11,7 @@ A Ruby script for fetching blog entries from Hatena Blog using the AtomPub API.
 - Command-line interface with options
 - Automatic removal of trailing whitespace from content
 - Pagination support for searching entries by date
-- Time tolerance matching for date-based URLs (±10 seconds)
+- Time tolerance matching for date-based URLs (±30 minutes)
 
 ## Prerequisites
 
@@ -149,7 +149,7 @@ The script returns the following data structure:
 For date-based URLs, the script:
 1. Fetches the entry list from the API
 2. Iterates through pages if necessary
-3. Matches entries by comparing timestamps (with 10-second tolerance)
+3. Matches entries by comparing timestamps (with 30-minute tolerance)
 4. Retrieves the full entry details once found
 
 ## Error Handling
