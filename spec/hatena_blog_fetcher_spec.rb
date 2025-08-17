@@ -80,6 +80,7 @@ RSpec.describe HatenaBlogFetcher do
         expect(result[:content]).to include("# Test Content")
         expect(result[:content]).to include("**Markdown**")
         expect(result[:published]).to eq("2024-01-01 12:34:56")
+        expect(result[:url]).to eq("https://shifumin.hatenadiary.com/entry/2024/01/01/123456")
       end
     end
 
@@ -114,6 +115,7 @@ RSpec.describe HatenaBlogFetcher do
 
         expect(result[:title]).to eq("Test Article Title")
         expect(result[:published]).to eq("2024-01-01 12:34:56")
+        expect(result[:url]).to eq("https://shifumin.hatenadiary.com/entry/2024/01/01/123456")
       end
     end
 
@@ -153,6 +155,7 @@ RSpec.describe HatenaBlogFetcher do
         <<~XML
           <?xml version="1.0" encoding="utf-8"?>
           <entry xmlns="http://www.w3.org/2005/Atom">
+            <link rel="alternate" type="text/html" href="https://shifumin.hatenadiary.com/entry/20240101/1234567890"/>
             <title>Test Article</title>
             <published>2024-01-01T12:00:00+09:00</published>
             <content type="text/x-markdown">Content with trailing spaces#{'    '}
@@ -178,6 +181,117 @@ RSpec.describe HatenaBlogFetcher do
         expect(result[:content]).to eq("Content with trailing spaces")
         expect(result[:content]).not_to end_with(" ")
         expect(result[:content]).not_to end_with("\n")
+        expect(result[:url]).not_to be_nil
+      end
+    end
+
+    context "with XML missing fields" do
+      let(:entry_url) { "https://shifumin.hatenadiary.com/entry/20240101/1234567890" }
+      let(:entry_api_url) { "#{HatenaBlogFetcher::API_ENDPOINT}/20240101/1234567890" }
+
+      context "when title is missing" do
+        let(:response_without_title) do
+          <<~XML
+            <?xml version="1.0" encoding="utf-8"?>
+            <entry xmlns="http://www.w3.org/2005/Atom">
+              <link rel="alternate" type="text/html" href="https://shifumin.hatenadiary.com/entry/20240101/1234567890"/>
+              <published>2024-01-01T12:00:00+09:00</published>
+              <content type="text/x-markdown">Content without title</content>
+            </entry>
+          XML
+        end
+
+        before do
+          stub_request(:get, entry_api_url)
+            .with(headers: { "Accept" => "application/atom+xml", "X-WSSE" => /UsernameToken/ })
+            .to_return(status: 200, body: response_without_title, headers: { "Content-Type" => "application/atom+xml" })
+        end
+
+        it "returns default title" do
+          result = fetcher.fetch_entry(entry_url)
+          expect(result[:title]).to eq("タイトルなし")
+        end
+      end
+
+      context "when content is missing" do
+        let(:response_without_content) do
+          <<~XML
+            <?xml version="1.0" encoding="utf-8"?>
+            <entry xmlns="http://www.w3.org/2005/Atom">
+              <title>Title Only</title>
+              <link rel="alternate" type="text/html" href="https://shifumin.hatenadiary.com/entry/20240101/1234567890"/>
+              <published>2024-01-01T12:00:00+09:00</published>
+            </entry>
+          XML
+        end
+
+        before do
+          stub_request(:get, entry_api_url)
+            .with(headers: { "Accept" => "application/atom+xml", "X-WSSE" => /UsernameToken/ })
+            .to_return(
+              status: 200,
+              body: response_without_content,
+              headers: { "Content-Type" => "application/atom+xml" }
+            )
+        end
+
+        it "returns default content" do
+          result = fetcher.fetch_entry(entry_url)
+          expect(result[:content]).to eq("本文なし")
+        end
+      end
+
+      context "when published date is missing" do
+        let(:response_without_date) do
+          <<~XML
+            <?xml version="1.0" encoding="utf-8"?>
+            <entry xmlns="http://www.w3.org/2005/Atom">
+              <title>No Date</title>
+              <link rel="alternate" type="text/html" href="https://shifumin.hatenadiary.com/entry/20240101/1234567890"/>
+              <content type="text/x-markdown">Content without date</content>
+            </entry>
+          XML
+        end
+
+        before do
+          stub_request(:get, entry_api_url)
+            .with(headers: { "Accept" => "application/atom+xml", "X-WSSE" => /UsernameToken/ })
+            .to_return(status: 200, body: response_without_date, headers: { "Content-Type" => "application/atom+xml" })
+        end
+
+        it "returns default published date" do
+          result = fetcher.fetch_entry(entry_url)
+          expect(result[:published]).to eq("投稿日時不明")
+        end
+      end
+
+      context "when alternate link is missing" do
+        let(:response_without_alternate_link) do
+          <<~XML
+            <?xml version="1.0" encoding="utf-8"?>
+            <entry xmlns="http://www.w3.org/2005/Atom">
+              <id>tag:blog.hatena.ne.jp,2013:blog-shifumin-17680117126972923446-13574176438046791234</id>
+              <title>No Link</title>
+              <published>2024-01-01T12:00:00+09:00</published>
+              <content type="text/x-markdown">Content without link</content>
+            </entry>
+          XML
+        end
+
+        before do
+          stub_request(:get, entry_api_url)
+            .with(headers: { "Accept" => "application/atom+xml", "X-WSSE" => /UsernameToken/ })
+            .to_return(
+              status: 200,
+              body: response_without_alternate_link,
+              headers: { "Content-Type" => "application/atom+xml" }
+            )
+        end
+
+        it "constructs URL from entry ID" do
+          result = fetcher.fetch_entry(entry_url)
+          expect(result[:url]).to eq("https://shifumin.hatenadiary.com/entry/13574176438046791234")
+        end
       end
     end
 
@@ -226,17 +340,16 @@ RSpec.describe HatenaBlogFetcher do
   describe "#find_entry_by_date" do
     let(:target_date) { "2024-01-01" }
     let(:time_part) { "123456" }
-    let(:list_response_with_pagination) do
+
+    let(:detail_response) do
       <<~XML
         <?xml version="1.0" encoding="utf-8"?>
-        <feed xmlns="http://www.w3.org/2005/Atom">
-          <link rel="next" href="https://blog.hatena.ne.jp/shifumin/shifumin.hatenadiary.com/atom/entry?page=2"/>
-          <entry>
-            <id>tag:blog.hatena.ne.jp,2013:blog-shifumin-17680117126972923446-99999999999999999999</id>
-            <published>2024-01-02T00:00:00+09:00</published>
-            <title>Different Article</title>
-          </entry>
-        </feed>
+        <entry xmlns="http://www.w3.org/2005/Atom">
+          <link rel="alternate" type="text/html" href="https://shifumin.hatenadiary.com/entry/2024/01/01/123456"/>
+          <title>Target Article</title>
+          <published>2024-01-01T12:34:56+09:00</published>
+          <content type="text/x-markdown">Found content</content>
+        </entry>
       XML
     end
     let(:second_page_response) do
@@ -251,15 +364,30 @@ RSpec.describe HatenaBlogFetcher do
         </feed>
       XML
     end
-    let(:detail_response) do
+    let(:list_response_with_pagination) do
       <<~XML
         <?xml version="1.0" encoding="utf-8"?>
-        <entry xmlns="http://www.w3.org/2005/Atom">
-          <title>Target Article</title>
-          <published>2024-01-01T12:34:56+09:00</published>
-          <content type="text/x-markdown">Found content</content>
-        </entry>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+          <link rel="next" href="https://blog.hatena.ne.jp/shifumin/shifumin.hatenadiary.com/atom/entry?page=2"/>
+          <entry>
+            <id>tag:blog.hatena.ne.jp,2013:blog-shifumin-17680117126972923446-99999999999999999999</id>
+            <published>2024-01-02T00:00:00+09:00</published>
+            <title>Different Article</title>
+          </entry>
+        </feed>
       XML
+    end
+
+    context "when API returns error during pagination" do
+      before do
+        stub_request(:get, HatenaBlogFetcher::API_ENDPOINT)
+          .with(headers: { "Accept" => "application/atom+xml", "X-WSSE" => /UsernameToken/ })
+          .to_return(status: 500, body: "Server Error", headers: {})
+      end
+
+      it "raises an error" do
+        expect { fetcher.find_entry_by_date(target_date, time_part) }.to raise_error(/APIリクエストが失敗しました/)
+      end
     end
 
     context "when entry is found on second page" do
@@ -288,6 +416,7 @@ RSpec.describe HatenaBlogFetcher do
         expect(result[:title]).to eq("Target Article")
         expect(result[:content]).to eq("Found content")
         expect(result[:published]).to eq("2024-01-01 12:34:56")
+        expect(result[:url]).to eq("https://shifumin.hatenadiary.com/entry/2024/01/01/123456")
       end
     end
 
@@ -339,6 +468,7 @@ RSpec.describe HatenaBlogFetcher do
       it "matches entry with time within 10 seconds tolerance" do
         result = fetcher.find_entry_by_date(target_date, "123505")
         expect(result).to be_a(Hash)
+        expect(result[:url]).not_to be_nil
       end
     end
 

@@ -29,7 +29,8 @@ RSpec.describe CommandLineInterface do
       {
         title: "Test Title",
         content: "Test Content",
-        published: "2024-01-01 12:00:00"
+        published: "2024-01-01 12:00:00",
+        url: "https://example.com/entry/test"
       }
     end
 
@@ -38,8 +39,12 @@ RSpec.describe CommandLineInterface do
     end
 
     context "with valid URL" do
-      it "fetches and outputs entry data" do
-        expect { cli.run(["https://example.com/entry/test"]) }.to output(/Test Title/).to_stdout
+      it "fetches and outputs entry data in full format" do
+        output = capture_stdout { cli.run(["https://example.com/entry/test"]) }
+        expect(output).to include("Test Title")
+        expect(output).to include("URL: https://example.com/entry/test")
+        expect(output).to include("投稿日時: 2024-01-01 12:00:00")
+        expect(output).to include("Test Content")
       end
     end
 
@@ -56,8 +61,14 @@ RSpec.describe CommandLineInterface do
     end
 
     context "with --date option" do
-      it "outputs only date" do
+      it "outputs only datetime" do
         expect { cli.run(["--date", "https://example.com/entry/test"]) }.to output("2024-01-01 12:00:00\n").to_stdout
+      end
+    end
+
+    context "with --url option" do
+      it "outputs only url" do
+        expect { cli.run(["--url", "https://example.com/entry/test"]) }.to output("https://example.com/entry/test\n").to_stdout
       end
     end
 
