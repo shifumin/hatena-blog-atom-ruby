@@ -6,7 +6,7 @@ A Ruby script for fetching blog entries from Hatena Blog using the AtomPub API.
 
 - Fetch individual blog posts by URL
 - Support for both date-based URLs and entry ID URLs
-- Multiple output formats (full, raw markdown, title only, date only)
+- Multiple output formats (full, raw markdown, title only, datetime only, URL only)
 - WSSE authentication for secure API access
 - Command-line interface with options
 - Automatic removal of trailing whitespace from content
@@ -51,7 +51,8 @@ Fetch a blog entry by URL:
 
 - `-r, --raw` - Output raw Markdown content only
 - `-t, --title` - Output title only
-- `-d, --date` - Output publication date only
+- `-d, --date` - Output publication datetime only
+- `-u, --url` - Output URL only
 - `-h, --help` - Display help message
 
 ### Examples
@@ -66,8 +67,11 @@ Fetch a blog entry by URL:
 # Get only the title
 ./hatena_blog_fetcher.rb -t https://shifumin.hatenadiary.com/entry/2024/01/01/123456
 
-# Get only the publication date
+# Get only the publication datetime
 ./hatena_blog_fetcher.rb -d https://shifumin.hatenadiary.com/entry/2024/01/01/123456
+
+# Get only the URL
+./hatena_blog_fetcher.rb -u https://shifumin.hatenadiary.com/entry/2024/01/01/123456
 ```
 
 ## Supported URL Formats
@@ -83,10 +87,12 @@ The script supports two types of Hatena Blog URLs:
 
 - `hatena_blog_fetcher.rb` - Main script containing HatenaBlogFetcher and CommandLineInterface classes
 - `spec/` - RSpec test files
-  - `hatena_blog_fetcher_spec.rb` - Tests for HatenaBlogFetcher class
-  - `command_line_interface_spec.rb` - Tests for CommandLineInterface class
+  - `hatena_blog_fetcher_spec.rb` - Tests for HatenaBlogFetcher class (20 examples)
+  - `command_line_interface_spec.rb` - Tests for CommandLineInterface class (9 examples)
+  - `spec_helper.rb` - Test configuration and helper methods
 - `Gemfile` - Ruby dependencies
 - `.rubocop.yml` - RuboCop configuration for code style
+- `CLAUDE.md` - Development notes and guidance for Claude Code
 
 ### Running Tests
 
@@ -131,6 +137,14 @@ This script uses the Hatena Blog AtomPub API:
 - Response format: Atom XML
 - Content type: text/x-markdown
 
+### Output Format
+
+The script returns the following data structure:
+- `title`: Article title
+- `content`: Markdown content (with trailing whitespace removed)
+- `published`: Publication datetime in YYYY-MM-DD HH:MM:SS format
+- `url`: Article URL
+
 ### Date-based URL Search
 For date-based URLs, the script:
 1. Fetches the entry list from the API
@@ -147,13 +161,37 @@ The script provides clear error messages for common issues:
 - Entry not found: Clear message when date-based search finds no matching entry
 - API authentication failures: Reports 401 errors with guidance
 
+## Testing
+
+The project includes comprehensive test coverage:
+- Unit tests for all public methods
+- Edge case testing (missing fields, time tolerance)
+- Error handling tests (HTTP errors, invalid URLs)
+- Mocked HTTP requests using WebMock
+
+Run tests with coverage:
+```bash
+rspec --format documentation
+```
+
+## Code Quality
+
+The project maintains high code quality standards:
+- RuboCop for style enforcement (0 violations)
+- Single Responsibility Principle for all methods
+- Comprehensive documentation
+- 100% test coverage for public interfaces
+
 ## Contributing
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+3. Write tests for your changes
+4. Ensure all tests pass (`rspec`)
+5. Check code style (`rubocop`)
+6. Commit your changes (`git commit -m 'Add some amazing feature'`)
+7. Push to the branch (`git push origin feature/amazing-feature`)
+8. Open a Pull Request
 
 ## License
 

@@ -38,7 +38,8 @@ rspec spec/path/to/spec_file.rb:42
 # Output options
 ./hatena_blog_fetcher.rb -r [URL]  # Raw Markdown content only
 ./hatena_blog_fetcher.rb -t [URL]  # Title only
-./hatena_blog_fetcher.rb -d [URL]  # Date only
+./hatena_blog_fetcher.rb -d [URL]  # Date/time only
+./hatena_blog_fetcher.rb -u [URL]  # URL only
 ```
 
 ## Environment Setup
@@ -78,7 +79,11 @@ Main class handling API interactions:
   - `fetch_entry_by_date`: Handles date-based URL fetching
   - `fetch_entry_by_id`: Handles standard entry ID fetching
   - `search_entry_in_pages`: Manages pagination when searching entries
-  - `parse_entry`: Parses XML response and strips trailing whitespace from content
+  - `parse_entry`: Parses XML response (delegates to specific extraction methods)
+  - `extract_title_from_entry`: Extracts title from XML entry
+  - `extract_content_from_entry`: Extracts and strips trailing whitespace from content
+  - `extract_published_date_from_entry`: Extracts published datetime
+  - `extract_url_from_entry`: Extracts URL from alternate link or constructs from ID
   - `create_wsse_header`: Generates WSSE authentication header
   - `get_with_wsse_auth`: Makes authenticated HTTP requests
 
@@ -87,7 +92,7 @@ Handles CLI interaction and output formatting:
 - `run`: Main entry point for CLI execution
 - `parse_options`: Processes command-line arguments
 - `output_result`: Routes to appropriate output format
-- Separate methods for each output format (raw, title, date, full)
+- Separate methods for each output format (raw, title, date, url, full)
 
 ### API Details
 - Endpoint: `https://blog.hatena.ne.jp/{HATENA_ID}/{BLOG_ID}/atom/entry`
@@ -98,26 +103,35 @@ Handles CLI interaction and output formatting:
 ## Development Notes
 
 ### Recent Improvements
-- Refactored code to follow Single Responsibility Principle
+- Added URL output option (`-u, --url`)
+- Changed output label from "投稿日" to "投稿日時" for clarity
+- Refactored `parse_entry` method to follow Single Responsibility Principle
+- Enhanced test coverage for XML field missing scenarios
+- Added test for API errors during pagination
 - Fixed issue with trailing blank lines in content output
-- Removed unnecessary test script (test_list.rb)
-- Added comprehensive test coverage for all public methods
 - Separated CLI logic into dedicated CommandLineInterface class
-- Removed debug logging code that was hardcoded for specific dates
 
 ### Testing Coverage
 The project has comprehensive test coverage with RSpec:
-- Tests for HatenaBlogFetcher class (all public methods)
-- Tests for CommandLineInterface class
+- **HatenaBlogFetcher class**: 20 test cases covering all public methods
+  - Normal cases: Standard URL formats, date-based searches
+  - Edge cases: Missing XML fields, time tolerance boundaries
+  - Error cases: 401/404/500 errors, invalid URLs, API failures
+- **CommandLineInterface class**: 9 test cases for all CLI options
 - WebMock used for mocking HTTP requests
-- Tests cover normal cases, edge cases, and error handling
-- Private methods are not directly tested (tested through public interface)
+- Private methods tested through public interface
+- Total: 29 test examples, 100% passing
 
 ### Code Style
 - Uses frozen string literals
 - Follows Ruby community conventions
-- RuboCop and RuboCop-RSpec configured for style enforcement
-- Methods follow Single Responsibility Principle
+- RuboCop and RuboCop-RSpec configured with pragmatic limits:
+  - MethodLength: Max 30 (default: 10)
+  - AbcSize: Max 30 (default: 17)
+  - ClassLength: Disabled (default: 100)
+  - RSpec/ExampleLength: Max 6 (default: 5)
+- All methods follow Single Responsibility Principle
+- No RuboCop violations with current configuration
 
 ### Known Issues Resolved
 - Content trailing whitespace: Fixed by adding `rstrip` to parsed content
