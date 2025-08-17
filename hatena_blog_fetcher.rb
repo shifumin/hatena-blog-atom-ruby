@@ -47,7 +47,12 @@ class HatenaBlogFetcher
     target_date = "#{year}-#{month}-#{day}"
 
     entry_data = find_entry_by_date(target_date, time)
-    return entry_data if entry_data
+    if entry_data
+      # URLから見かけ上の日時を生成して上書き
+      apparent_datetime = build_apparent_datetime(year, month, day, time)
+      entry_data[:published] = apparent_datetime
+      return entry_data
+    end
 
     raise "指定された日付の記事が見つかりませんでした: #{entry_url}"
   end
@@ -179,7 +184,7 @@ class HatenaBlogFetcher
     published_datetime[:date] == target_date
   end
 
-  def time_matches?(published_time, target_time, tolerance_seconds = 1800)
+  def time_matches?(published_time, target_time, tolerance_seconds = 3600)
     published_seconds = convert_hhmmss_to_seconds(published_time)
     target_seconds = convert_hhmmss_to_seconds(target_time)
 
@@ -192,6 +197,17 @@ class HatenaBlogFetcher
     min = time_str[2, 2].to_i
     sec = time_str[4, 2].to_i
     (hour * 3600) + (min * 60) + sec
+  end
+
+  def build_apparent_datetime(year, month, day, time_str)
+    # HHMMSS形式から時:分:秒を抽出（不足分は0で埋める）
+    padded_time = time_str.ljust(6, "0")
+    hour = padded_time[0, 2]
+    min = padded_time[2, 2]
+    sec = padded_time[4, 2]
+
+    # 見かけ上の日時を構築
+    "#{year}-#{month}-#{day} #{hour}:#{min}:#{sec}"
   end
 
   def extract_entry_id_from_element(entry)

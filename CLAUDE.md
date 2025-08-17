@@ -112,7 +112,12 @@ Handles CLI interaction and output formatting:
 - Separated CLI logic into dedicated CommandLineInterface class
 - Fixed time matching for date-based URLs:
   - Corrected HHMMSS to seconds conversion in `time_matches?` method
-  - Increased time tolerance from 10 seconds to 30 minutes for better flexibility
+  - Increased time tolerance from 30 minutes to 1 hour (3600 seconds) for better flexibility
+  - This allows matching articles posted within 1 hour of the specified time in the URL
+- Implemented apparent datetime for date-based URLs:
+  - Date-based URLs now display the apparent datetime from the URL instead of the actual published time
+  - Example: `/entry/2020/03/21/230000` displays as "2020-03-21 23:00:00" regardless of actual publication time
+  - This makes the output consistent with the URL structure and user expectations
 
 ### Testing Coverage
 The project has comprehensive test coverage with RSpec:
