@@ -142,7 +142,6 @@ class HatenaBlogFetcher
       return matching_entry if matching_entry
 
       next_url = get_next_page_url(doc)
-      warn "Fetching next page: #{next_url}" if next_url
     end
 
     nil
@@ -162,18 +161,37 @@ class HatenaBlogFetcher
     published = entry.elements["published"]&.text
     return false unless published
 
-    published_date = Time.parse(published).strftime("%Y-%m-%d")
-    published_time = Time.parse(published).strftime("%H%M%S")
+    published_datetime = parse_published_datetime(published)
+    return false unless date_matches?(published_datetime, target_date)
 
-    return false unless published_date == target_date
-
-    time_matches?(published_time, time_part)
+    time_matches?(published_datetime[:time], time_part)
   end
 
-  def time_matches?(published_time, target_time, tolerance_seconds = 10)
-    published_seconds = published_time.to_i
-    target_seconds = target_time.to_i
-    (published_seconds - target_seconds).abs <= tolerance_seconds
+  def parse_published_datetime(published_str)
+    parsed_time = Time.parse(published_str)
+    {
+      date: parsed_time.strftime("%Y-%m-%d"),
+      time: parsed_time.strftime("%H%M%S")
+    }
+  end
+
+  def date_matches?(published_datetime, target_date)
+    published_datetime[:date] == target_date
+  end
+
+  def time_matches?(published_time, target_time, tolerance_seconds = 1800)
+    published_seconds = convert_hhmmss_to_seconds(published_time)
+    target_seconds = convert_hhmmss_to_seconds(target_time)
+
+    diff = (published_seconds - target_seconds).abs
+    diff <= tolerance_seconds
+  end
+
+  def convert_hhmmss_to_seconds(time_str)
+    hour = time_str[0, 2].to_i
+    min = time_str[2, 2].to_i
+    sec = time_str[4, 2].to_i
+    (hour * 3600) + (min * 60) + sec
   end
 
   def extract_entry_id_from_element(entry)

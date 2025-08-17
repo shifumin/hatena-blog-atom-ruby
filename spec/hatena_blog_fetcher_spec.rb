@@ -465,7 +465,8 @@ RSpec.describe HatenaBlogFetcher do
           .to_return(status: 200, body: detail_response, headers: { "Content-Type" => "application/atom+xml" })
       end
 
-      it "matches entry with time within 10 seconds tolerance" do
+      it "matches entry with time within tolerance" do
+        # 12:35:05 vs 12:35:05 = 0秒差（1800秒以内）
         result = fetcher.find_entry_by_date(target_date, "123505")
         expect(result).to be_a(Hash)
         expect(result[:url]).not_to be_nil
@@ -479,7 +480,7 @@ RSpec.describe HatenaBlogFetcher do
           <feed xmlns="http://www.w3.org/2005/Atom">
             <entry>
               <id>tag:blog.hatena.ne.jp,2013:blog-shifumin-17680117126972923446-13574176438046791234</id>
-              <published>2024-01-01T12:35:20+09:00</published>
+              <published>2024-01-01T13:05:20+09:00</published>
               <title>Outside Tolerance Article</title>
             </entry>
           </feed>
@@ -496,7 +497,8 @@ RSpec.describe HatenaBlogFetcher do
           )
       end
 
-      it "does not match entry with time outside 10 seconds tolerance" do
+      it "does not match entry with time outside tolerance (30 minutes)" do
+        # 13:05:20 vs 12:34:56 = 1824秒差（1800秒の許容誤差を超える）
         result = fetcher.find_entry_by_date(target_date, "123456")
         expect(result).to be_nil
       end
