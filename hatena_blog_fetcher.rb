@@ -8,6 +8,7 @@ require "digest/sha1"
 require "base64"
 require "securerandom"
 require "time"
+require "date"
 require "optparse"
 
 class HatenaBlogFetcher
@@ -137,39 +138,81 @@ class HatenaBlogFetcher
     max_pages = 100
     page_count = 0
     next_url = API_ENDPOINT
+    candidates = []
 
     while next_url && page_count < max_pages
       page_count += 1
       response = get_with_wsse_auth(next_url)
       doc = REXML::Document.new(response.body)
 
-      matching_entry = find_matching_entry_in_page(doc, target_date, time_part)
-      return matching_entry if matching_entry
+      # 候補を収集
+      page_candidates = find_matching_entries_in_page(doc, target_date, time_part)
+      candidates.concat(page_candidates)
+
+      # 完全一致があれば即座に返す
+      perfect_match = candidates.find { |c| c[:score].zero? }
+      return perfect_match[:entry_id] if perfect_match
 
       next_url = get_next_page_url(doc)
     end
 
-    nil
+    # 最もスコアが低い（最も一致度が高い）候補を返す
+    return nil if candidates.empty?
+
+    best_candidate = candidates.min_by { |c| c[:score] }
+    best_candidate[:entry_id]
   end
 
-  def find_matching_entry_in_page(doc, target_date, time_part)
+  def find_matching_entries_in_page(doc, target_date, time_part)
+    candidates = []
     doc.elements.each("feed/entry") do |entry|
-      next unless entry_matches_date?(entry, target_date, time_part)
+      score = calculate_entry_match_score(entry, target_date, time_part)
+      next if score.nil?
 
       entry_id = extract_entry_id_from_element(entry)
-      return entry_id if entry_id
+      next unless entry_id
+
+      title = entry.elements["title"]&.text || ""
+      candidates << { entry_id: entry_id, score: score, title: title }
     end
-    nil
+    candidates
   end
 
-  def entry_matches_date?(entry, target_date, time_part)
+  def calculate_entry_match_score(entry, target_date, time_part)
     published = entry.elements["published"]&.text
-    return false unless published
+    return nil unless published
 
     published_datetime = parse_published_datetime(published)
-    return false unless date_matches?(published_datetime, target_date)
 
-    time_matches?(published_datetime[:time], time_part)
+    # 記事URLを確認
+    entry_url = extract_url_from_entry_element(entry)
+    if entry_url&.include?("/entry/#{target_date.tr('-', '/')}/#{time_part}")
+      # URLが完全に一致する場合は最優先
+      return 0
+    end
+
+    # 日付の差を計算
+    date_diff = calculate_date_diff(published_datetime[:date], target_date)
+    return nil if date_diff > 7 # 7日以上離れていたら候補から除外
+
+    # 時刻の差を計算
+    time_diff = calculate_time_diff(published_datetime[:time], time_part)
+    return nil if time_diff > 3600 # 1時間（3600秒）を超える差がある場合は候補から除外
+
+    # スコアを計算（低いほど良い）
+    (date_diff * 86_400) + time_diff # 日付の差を秒に換算して加算
+  end
+
+  def calculate_date_diff(published_date_str, target_date_str)
+    published_date = Date.parse(published_date_str)
+    target_date = Date.parse(target_date_str)
+    (published_date - target_date).abs
+  end
+
+  def calculate_time_diff(published_time, target_time)
+    published_seconds = convert_hhmmss_to_seconds(published_time)
+    target_seconds = convert_hhmmss_to_seconds(target_time)
+    (published_seconds - target_seconds).abs
   end
 
   def parse_published_datetime(published_str)
@@ -178,18 +221,6 @@ class HatenaBlogFetcher
       date: parsed_time.strftime("%Y-%m-%d"),
       time: parsed_time.strftime("%H%M%S")
     }
-  end
-
-  def date_matches?(published_datetime, target_date)
-    published_datetime[:date] == target_date
-  end
-
-  def time_matches?(published_time, target_time, tolerance_seconds = 3600)
-    published_seconds = convert_hhmmss_to_seconds(published_time)
-    target_seconds = convert_hhmmss_to_seconds(target_time)
-
-    diff = (published_seconds - target_seconds).abs
-    diff <= tolerance_seconds
   end
 
   def convert_hhmmss_to_seconds(time_str)
@@ -218,6 +249,19 @@ class HatenaBlogFetcher
     return nil unless id_text
 
     id_text.split("-").last
+  end
+
+  def extract_url_from_entry_element(entry)
+    # link要素からalternateリンクを探す
+    link = entry.elements['link[@rel="alternate"]']
+    return link.attributes["href"] if link&.attributes&.[]("href")
+
+    # alternateリンクがない場合はidから構築
+    id_element = entry.elements["id"]
+    return nil unless id_element&.text
+
+    entry_id = id_element.text.split("-").last
+    "https://#{BLOG_ID}/entry/#{entry_id}"
   end
 
   def fetch_entry_details(entry_id)

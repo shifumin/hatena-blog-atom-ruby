@@ -114,7 +114,8 @@ RSpec.describe HatenaBlogFetcher do
         result = fetcher.fetch_entry(entry_url)
 
         expect(result[:title]).to eq("Test Article Title")
-        expect(result[:published]).to eq("2024-01-01 12:34:56") # 見かけ上の日時（URLから）
+        # Date-based URLの場合、URLから導出された見かけの日時を返す（実際のpublished時刻に関わらず）
+        expect(result[:published]).to eq("2024-01-01 12:34:56") # URLの/2024/01/01/123456から12:34:56
         expect(result[:url]).to eq("https://shifumin.hatenadiary.com/entry/2024/01/01/123456")
       end
     end
@@ -415,7 +416,8 @@ RSpec.describe HatenaBlogFetcher do
         expect(result).to be_a(Hash)
         expect(result[:title]).to eq("Target Article")
         expect(result[:content]).to eq("Found content")
-        expect(result[:published]).to eq("2024-01-01 12:34:56")
+        # find_entry_by_dateはdate-based URL用なので、URLから導出された見かけの日時を返す
+        expect(result[:published]).to eq("2024-01-01 12:34:56") # time_part = "123456"から12:34:56
         expect(result[:url]).to eq("https://shifumin.hatenadiary.com/entry/2024/01/01/123456")
       end
     end

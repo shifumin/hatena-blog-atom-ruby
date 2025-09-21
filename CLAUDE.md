@@ -118,6 +118,10 @@ Handles CLI interaction and output formatting:
   - Date-based URLs now display the apparent datetime from the URL instead of the actual published time
   - Example: `/entry/2020/03/21/230000` displays as "2020-03-21 23:00:00" regardless of actual publication time
   - This makes the output consistent with the URL structure and user expectations
+- Enhanced date-based entry matching algorithm:
+  - Added time tolerance check in `calculate_entry_match_score` method
+  - Entries with time differences exceeding 1 hour (3600 seconds) are now excluded from candidates
+  - This prevents incorrect matches when multiple articles exist on the same date
 
 ### Testing Coverage
 The project has comprehensive test coverage with RSpec:
