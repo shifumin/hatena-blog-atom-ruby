@@ -10,6 +10,7 @@ require "securerandom"
 require "time"
 require "date"
 require "optparse"
+require "openssl"
 
 class HatenaBlogFetcher
   HATENA_ID = "shifumin"
@@ -119,6 +120,8 @@ class HatenaBlogFetcher
     uri = URI.parse(url)
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = true
+    http.verify_mode = OpenSSL::SSL::VERIFY_PEER
+    http.cert_store = create_cert_store
 
     request = Net::HTTP::Get.new(uri.request_uri)
     request["X-WSSE"] = create_wsse_header
@@ -132,6 +135,14 @@ class HatenaBlogFetcher
     end
 
     response
+  end
+
+  def create_cert_store
+    store = OpenSSL::X509::Store.new
+    store.set_default_paths
+    # CRLチェックはデフォルトで無効（明示的に有効化しない）
+    # 証明書の基本的な検証（ホスト名、有効期限、信頼チェーン）は維持される
+    store
   end
 
   def search_entry_in_pages(target_date, time_part)
