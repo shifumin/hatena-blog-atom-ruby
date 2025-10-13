@@ -11,11 +11,12 @@ A Ruby script for fetching blog entries from Hatena Blog using the AtomPub API.
 - Command-line interface with options
 - Automatic removal of trailing whitespace from content
 - Pagination support for searching entries by date
-- Time tolerance matching for date-based URLs (±30 minutes)
+- Time tolerance matching for date-based URLs (±1 hour)
+- Secure SSL/TLS connections with certificate validation
 
 ## Prerequisites
 
-- Ruby 3.4.5 or higher
+- Ruby 3.4.7 or higher
 - Hatena Blog API key
 
 ## Installation
@@ -87,7 +88,7 @@ The script supports two types of Hatena Blog URLs:
 
 - `hatena_blog_fetcher.rb` - Main script containing HatenaBlogFetcher and CommandLineInterface classes
 - `spec/` - RSpec test files
-  - `hatena_blog_fetcher_spec.rb` - Tests for HatenaBlogFetcher class (20 examples)
+  - `hatena_blog_fetcher_spec.rb` - Tests for HatenaBlogFetcher class (23 examples)
   - `command_line_interface_spec.rb` - Tests for CommandLineInterface class (9 examples)
   - `spec_helper.rb` - Test configuration and helper methods
 - `Gemfile` - Ruby dependencies
@@ -149,8 +150,14 @@ The script returns the following data structure:
 For date-based URLs, the script:
 1. Fetches the entry list from the API
 2. Iterates through pages if necessary
-3. Matches entries by comparing timestamps (with 30-minute tolerance)
+3. Matches entries by comparing timestamps (with 1-hour tolerance)
 4. Retrieves the full entry details once found
+
+### SSL/TLS Security
+The script implements secure HTTPS connections with certificate validation:
+- **Enabled security features**: Hostname verification, certificate expiration checking, trust chain validation
+- **CRL checking**: Disabled to prevent "unable to get certificate CRL" errors
+- Uses OpenSSL with VERIFY_PEER mode for secure API communication
 
 ## Error Handling
 

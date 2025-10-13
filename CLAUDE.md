@@ -51,7 +51,7 @@ rspec spec/path/to/spec_file.rb:42
   ```
 
 ### Ruby Version
-- Ruby 3.4.5 (managed via `.ruby-version`)
+- Ruby 3.4.7 (managed via `.ruby-version`)
 
 ## Architecture & Code Structure
 
@@ -60,6 +60,16 @@ The codebase uses WSSE authentication for the Hatena Blog AtomPub API:
 - WSSE header creation with SHA1 digest (`create_wsse_header` method)
 - Nonce generation using SecureRandom
 - Digest calculation: SHA1(nonce + created + api_key)
+
+### SSL/TLS Configuration
+The script uses custom SSL certificate verification to ensure secure API connections:
+- **Certificate validation**: Enabled (VERIFY_PEER mode)
+- **CRL checking**: Disabled (to avoid "unable to get certificate CRL" errors)
+- **Security features maintained**:
+  - Hostname verification
+  - Certificate expiration checking
+  - Trust chain validation
+- Implementation in `create_cert_store` method using OpenSSL::X509::Store
 
 ### URL Handling
 The fetcher supports two URL formats:
@@ -85,7 +95,8 @@ Main class handling API interactions:
   - `extract_published_date_from_entry`: Extracts published datetime
   - `extract_url_from_entry`: Extracts URL from alternate link or constructs from ID
   - `create_wsse_header`: Generates WSSE authentication header
-  - `get_with_wsse_auth`: Makes authenticated HTTP requests
+  - `get_with_wsse_auth`: Makes authenticated HTTP requests with SSL certificate validation
+  - `create_cert_store`: Creates OpenSSL certificate store with CRL checking disabled
 
 #### CommandLineInterface class
 Handles CLI interaction and output formatting:
@@ -103,6 +114,13 @@ Handles CLI interaction and output formatting:
 ## Development Notes
 
 ### Recent Improvements
+- **Ruby version upgrade** (2025-10-13):
+  - Upgraded from Ruby 3.4.5 to 3.4.7
+  - Ensures latest security patches and improvements
+- **SSL certificate verification fix** (2025-10-13):
+  - Fixed "unable to get certificate CRL" error
+  - Implemented custom cert_store with CRL checking disabled
+  - Maintained core security features (hostname, expiration, trust chain validation)
 - Added URL output option (`-u, --url`)
 - Changed output label from "投稿日" to "投稿日時" for clarity
 - Refactored `parse_entry` method to follow Single Responsibility Principle
@@ -125,14 +143,14 @@ Handles CLI interaction and output formatting:
 
 ### Testing Coverage
 The project has comprehensive test coverage with RSpec:
-- **HatenaBlogFetcher class**: 20 test cases covering all public methods
+- **HatenaBlogFetcher class**: 23 test cases covering all public methods
   - Normal cases: Standard URL formats, date-based searches
   - Edge cases: Missing XML fields, time tolerance boundaries
   - Error cases: 401/404/500 errors, invalid URLs, API failures
 - **CommandLineInterface class**: 9 test cases for all CLI options
 - WebMock used for mocking HTTP requests
 - Private methods tested through public interface
-- Total: 29 test examples, 100% passing
+- Total: 32 test examples, 100% passing
 
 ### Code Style
 - Uses frozen string literals
@@ -146,5 +164,6 @@ The project has comprehensive test coverage with RSpec:
 - No RuboCop violations with current configuration
 
 ### Known Issues Resolved
-- Content trailing whitespace: Fixed by adding `rstrip` to parsed content
-- Time matching tolerance: Allows 10-second tolerance for date-based URL matching
+- **SSL certificate CRL verification error**: Fixed by implementing custom cert_store that disables CRL checking while maintaining core certificate validation
+- **Content trailing whitespace**: Fixed by adding `rstrip` to parsed content
+- **Time matching tolerance**: Corrected time conversion and increased tolerance to 1 hour for date-based URL matching
