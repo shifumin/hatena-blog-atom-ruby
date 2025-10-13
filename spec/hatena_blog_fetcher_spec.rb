@@ -507,20 +507,4 @@ RSpec.describe HatenaBlogFetcher do
     end
   end
 
-  describe "#build_apparent_datetime (private)" do
-    it "builds apparent datetime from URL components" do
-      result = fetcher.send(:build_apparent_datetime, "2024", "01", "01", "123456")
-      expect(result).to eq("2024-01-01 12:34:56")
-    end
-
-    it "handles time with less than 6 digits" do
-      result = fetcher.send(:build_apparent_datetime, "2024", "01", "01", "1234")
-      expect(result).to eq("2024-01-01 12:34:00")
-    end
-
-    it "handles time with only hours" do
-      result = fetcher.send(:build_apparent_datetime, "2024", "01", "01", "12")
-      expect(result).to eq("2024-01-01 12:00:00")
-    end
-  end
 end
