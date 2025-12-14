@@ -1,6 +1,23 @@
 # hatena-blog-atom-ruby
 
+[![Ruby](https://img.shields.io/badge/Ruby-3.4.7-red.svg)](https://www.ruby-lang.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 A Ruby script for fetching blog entries from Hatena Blog using the AtomPub API.
+
+## Table of Contents
+
+- [Features](#features)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Supported URL Formats](#supported-url-formats)
+- [Development](#development)
+- [Configuration](#configuration)
+- [API Reference](#api-reference)
+- [Error Handling](#error-handling)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Features
 
@@ -37,7 +54,16 @@ bundle install
 export HATENA_API_KEY='your-api-key-here'
 ```
 
-You can obtain your API key from your Hatena Blog account settings.
+### Obtaining Your API Key
+
+1. Log in to your Hatena Blog
+2. Go to your blog's dashboard: `https://blog.hatena.ne.jp/{your-hatena-id}/{your-blog-id}/config/detail`
+3. Scroll down to "AtomPub" section
+4. Click "APIキーを表示" (Show API Key)
+5. Copy the displayed API key
+
+Alternatively, you can access the API key settings from:
+- Blog Dashboard → Settings (設定) → Advanced Settings (詳細設定) → AtomPub
 
 ## Usage
 
@@ -75,6 +101,35 @@ Fetch a blog entry by URL:
 ./hatena_blog_fetcher.rb -u https://shifumin.hatenadiary.com/entry/2024/01/01/123456
 ```
 
+### Output Examples
+
+**Full output (default):**
+```
+============================================================
+タイトル: サンプル記事タイトル
+投稿日時: 2024-01-01 12:34:56
+URL: https://shifumin.hatenadiary.com/entry/2024/01/01/123456
+============================================================
+本文（Markdown）:
+------------------------------------------------------------
+# 見出し
+
+本文のMarkdownコンテンツがここに表示されます。
+============================================================
+```
+
+**Raw markdown output (`-r`):**
+```
+# 見出し
+
+本文のMarkdownコンテンツがここに表示されます。
+```
+
+**Title only (`-t`):**
+```
+サンプル記事タイトル
+```
+
 ## Supported URL Formats
 
 The script supports two types of Hatena Blog URLs:
@@ -88,38 +143,12 @@ The script supports two types of Hatena Blog URLs:
 
 - `hatena_blog_fetcher.rb` - Main script containing HatenaBlogFetcher and CommandLineInterface classes
 - `spec/` - RSpec test files
-  - `hatena_blog_fetcher_spec.rb` - Tests for HatenaBlogFetcher class (23 examples)
-  - `command_line_interface_spec.rb` - Tests for CommandLineInterface class (9 examples)
+  - `hatena_blog_fetcher_spec.rb` - Tests for HatenaBlogFetcher class
+  - `command_line_interface_spec.rb` - Tests for CommandLineInterface class
   - `spec_helper.rb` - Test configuration and helper methods
 - `Gemfile` - Ruby dependencies
 - `.rubocop.yml` - RuboCop configuration for code style
 - `CLAUDE.md` - Development notes and guidance for Claude Code
-
-### Running Tests
-
-```bash
-# Run all tests
-rspec
-
-# Run specific test file
-rspec spec/hatena_blog_fetcher_spec.rb
-
-# Run with detailed output
-rspec --format documentation
-```
-
-### Linting
-
-```bash
-# Check code style
-rubocop
-
-# Auto-fix issues
-rubocop -a
-
-# Check specific file
-rubocop hatena_blog_fetcher.rb
-```
 
 ## Configuration
 
@@ -146,19 +175,6 @@ The script returns the following data structure:
 - `published`: Publication datetime in YYYY-MM-DD HH:MM:SS format
 - `url`: Article URL
 
-### Date-based URL Search
-For date-based URLs, the script:
-1. Fetches the entry list from the API
-2. Iterates through pages if necessary
-3. Matches entries by comparing timestamps (with 1-hour tolerance)
-4. Retrieves the full entry details once found
-
-### SSL/TLS Security
-The script implements secure HTTPS connections with certificate validation:
-- **Enabled security features**: Hostname verification, certificate expiration checking, trust chain validation
-- **CRL checking**: Disabled to prevent "unable to get certificate CRL" errors
-- Uses OpenSSL with VERIFY_PEER mode for secure API communication
-
 ## Error Handling
 
 The script provides clear error messages for common issues:
@@ -167,27 +183,6 @@ The script provides clear error messages for common issues:
 - Network errors: Reports HTTP status codes and error messages
 - Entry not found: Clear message when date-based search finds no matching entry
 - API authentication failures: Reports 401 errors with guidance
-
-## Testing
-
-The project includes comprehensive test coverage:
-- Unit tests for all public methods
-- Edge case testing (missing fields, time tolerance)
-- Error handling tests (HTTP errors, invalid URLs)
-- Mocked HTTP requests using WebMock
-
-Run tests with coverage:
-```bash
-rspec --format documentation
-```
-
-## Code Quality
-
-The project maintains high code quality standards:
-- RuboCop for style enforcement (0 violations)
-- Single Responsibility Principle for all methods
-- Comprehensive documentation
-- 100% test coverage for public interfaces
 
 ## Contributing
 
