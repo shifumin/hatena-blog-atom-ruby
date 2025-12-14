@@ -480,187 +480,189 @@ class HatenaBlogFetcher
   end
 end
 
-# コマンドラインインターフェースを提供するクラス
-#
-# @example 基本的な使用方法
-#   CommandLineInterface.run(ARGV)
-class CommandLineInterface
-  # CLIを実行する
+class HatenaBlogFetcher
+  # コマンドラインインターフェースを提供するクラス
   #
-  # @param args [Array<String>] コマンドライン引数
-  # @return [void]
-  def self.run(args)
-    new.run(args)
-  end
-
-  # インスタンスメソッドとしてCLIを実行する
-  #
-  # @param args [Array<String>] コマンドライン引数
-  # @return [void]
-  def run(args)
-    options = parse_options(args)
-    url = validate_arguments(args)
-
-    entry_data = fetch_entry(url)
-    output_result(entry_data, options)
-  rescue StandardError => e
-    handle_error(e)
-  end
-
-  private
-
-  # コマンドラインオプションをパースする
-  #
-  # @param args [Array<String>] コマンドライン引数
-  # @return [Hash] パースされたオプション
-  def parse_options(args)
-    options = {}
-    parser = create_option_parser(options)
-    parser.parse!(args)
-    options
-  end
-
-  # OptionParserインスタンスを作成する
-  #
-  # @param options [Hash] オプションを格納するハッシュ
-  # @return [OptionParser] 設定済みのOptionParser
-  def create_option_parser(options)
-    OptionParser.new do |opts|
-      opts.banner = "使用方法: #{$PROGRAM_NAME} [オプション] URL"
-      opts.separator ""
-      opts.separator "はてなブログの記事情報を取得します"
-      opts.separator ""
-      opts.separator "オプション:"
-
-      define_options(opts, options)
-    end
-  end
-
-  # オプションを定義する
-  #
-  # @param opts [OptionParser] OptionParserインスタンス
-  # @param options [Hash] オプションを格納するハッシュ
-  # @return [void]
-  def define_options(opts, options)
-    opts.on("-h", "--help", "このヘルプを表示") do
-      puts opts
-      exit
+  # @example 基本的な使用方法
+  #   HatenaBlogFetcher::CLI.run(ARGV)
+  class CLI
+    # CLIを実行する
+    #
+    # @param args [Array<String>] コマンドライン引数
+    # @return [void]
+    def self.run(args)
+      new.run(args)
     end
 
-    opts.on("-r", "--raw", "生のMarkdown本文のみを出力") do
-      options[:raw] = true
+    # インスタンスメソッドとしてCLIを実行する
+    #
+    # @param args [Array<String>] コマンドライン引数
+    # @return [void]
+    def run(args)
+      options = parse_options(args)
+      url = validate_arguments(args)
+
+      entry_data = fetch_entry(url)
+      output_result(entry_data, options)
+    rescue StandardError => e
+      handle_error(e)
     end
 
-    opts.on("-t", "--title", "タイトルのみを出力") do
-      options[:title_only] = true
+    private
+
+    # コマンドラインオプションをパースする
+    #
+    # @param args [Array<String>] コマンドライン引数
+    # @return [Hash] パースされたオプション
+    def parse_options(args)
+      options = {}
+      parser = create_option_parser(options)
+      parser.parse!(args)
+      options
     end
 
-    opts.on("-d", "--date", "投稿日時のみを出力") do
-      options[:date_only] = true
+    # OptionParserインスタンスを作成する
+    #
+    # @param options [Hash] オプションを格納するハッシュ
+    # @return [OptionParser] 設定済みのOptionParser
+    def create_option_parser(options)
+      OptionParser.new do |opts|
+        opts.banner = "使用方法: #{$PROGRAM_NAME} [オプション] URL"
+        opts.separator ""
+        opts.separator "はてなブログの記事情報を取得します"
+        opts.separator ""
+        opts.separator "オプション:"
+
+        define_options(opts, options)
+      end
     end
 
-    opts.on("-u", "--url", "URLのみを出力") do
-      options[:url_only] = true
-    end
-  end
+    # オプションを定義する
+    #
+    # @param opts [OptionParser] OptionParserインスタンス
+    # @param options [Hash] オプションを格納するハッシュ
+    # @return [void]
+    def define_options(opts, options)
+      opts.on("-h", "--help", "このヘルプを表示") do
+        puts opts
+        exit
+      end
 
-  # 引数を検証する
-  #
-  # @param args [Array<String>] コマンドライン引数
-  # @return [String] 検証済みのURL
-  def validate_arguments(args)
-    if args.empty?
-      parser = create_option_parser({})
-      puts parser
+      opts.on("-r", "--raw", "生のMarkdown本文のみを出力") do
+        options[:raw] = true
+      end
+
+      opts.on("-t", "--title", "タイトルのみを出力") do
+        options[:title_only] = true
+      end
+
+      opts.on("-d", "--date", "投稿日時のみを出力") do
+        options[:date_only] = true
+      end
+
+      opts.on("-u", "--url", "URLのみを出力") do
+        options[:url_only] = true
+      end
+    end
+
+    # 引数を検証する
+    #
+    # @param args [Array<String>] コマンドライン引数
+    # @return [String] 検証済みのURL
+    def validate_arguments(args)
+      if args.empty?
+        parser = create_option_parser({})
+        puts parser
+        exit 1
+      end
+      args[0]
+    end
+
+    # 記事を取得する
+    #
+    # @param url [String] 記事URL
+    # @return [Hash] 記事データ
+    def fetch_entry(url)
+      fetcher = HatenaBlogFetcher.new
+      fetcher.fetch_entry(url)
+    end
+
+    # 結果を出力する
+    #
+    # @param entry_data [Hash] 記事データ
+    # @param options [Hash] 出力オプション
+    # @return [void]
+    def output_result(entry_data, options)
+      if options[:raw]
+        output_raw_content(entry_data)
+      elsif options[:title_only]
+        output_title(entry_data)
+      elsif options[:date_only]
+        output_date(entry_data)
+      elsif options[:url_only]
+        output_url(entry_data)
+      else
+        output_full_format(entry_data)
+      end
+    end
+
+    # 生のMarkdown本文を出力する
+    #
+    # @param entry_data [Hash] 記事データ
+    # @return [void]
+    def output_raw_content(entry_data)
+      puts entry_data[:content]
+    end
+
+    # タイトルのみを出力する
+    #
+    # @param entry_data [Hash] 記事データ
+    # @return [void]
+    def output_title(entry_data)
+      puts entry_data[:title]
+    end
+
+    # URLのみを出力する
+    #
+    # @param entry_data [Hash] 記事データ
+    # @return [void]
+    def output_url(entry_data)
+      puts entry_data[:url]
+    end
+
+    # 投稿日時のみを出力する
+    #
+    # @param entry_data [Hash] 記事データ
+    # @return [void]
+    def output_date(entry_data)
+      puts entry_data[:published]
+    end
+
+    # 全情報をフォーマットして出力する
+    #
+    # @param entry_data [Hash] 記事データ
+    # @return [void]
+    def output_full_format(entry_data)
+      puts "=" * 60
+      puts "タイトル: #{entry_data[:title]}"
+      puts "投稿日時: #{entry_data[:published]}"
+      puts "URL: #{entry_data[:url]}"
+      puts "=" * 60
+      puts "本文（Markdown）:"
+      puts "-" * 60
+      puts entry_data[:content]
+      puts "=" * 60
+    end
+
+    # エラーを処理する
+    #
+    # @param error [StandardError] 発生したエラー
+    # @return [void]
+    def handle_error(error)
+      warn "エラー: #{error.message}"
+      warn error.backtrace
       exit 1
     end
-    args[0]
-  end
-
-  # 記事を取得する
-  #
-  # @param url [String] 記事URL
-  # @return [Hash] 記事データ
-  def fetch_entry(url)
-    fetcher = HatenaBlogFetcher.new
-    fetcher.fetch_entry(url)
-  end
-
-  # 結果を出力する
-  #
-  # @param entry_data [Hash] 記事データ
-  # @param options [Hash] 出力オプション
-  # @return [void]
-  def output_result(entry_data, options)
-    if options[:raw]
-      output_raw_content(entry_data)
-    elsif options[:title_only]
-      output_title(entry_data)
-    elsif options[:date_only]
-      output_date(entry_data)
-    elsif options[:url_only]
-      output_url(entry_data)
-    else
-      output_full_format(entry_data)
-    end
-  end
-
-  # 生のMarkdown本文を出力する
-  #
-  # @param entry_data [Hash] 記事データ
-  # @return [void]
-  def output_raw_content(entry_data)
-    puts entry_data[:content]
-  end
-
-  # タイトルのみを出力する
-  #
-  # @param entry_data [Hash] 記事データ
-  # @return [void]
-  def output_title(entry_data)
-    puts entry_data[:title]
-  end
-
-  # URLのみを出力する
-  #
-  # @param entry_data [Hash] 記事データ
-  # @return [void]
-  def output_url(entry_data)
-    puts entry_data[:url]
-  end
-
-  # 投稿日時のみを出力する
-  #
-  # @param entry_data [Hash] 記事データ
-  # @return [void]
-  def output_date(entry_data)
-    puts entry_data[:published]
-  end
-
-  # 全情報をフォーマットして出力する
-  #
-  # @param entry_data [Hash] 記事データ
-  # @return [void]
-  def output_full_format(entry_data)
-    puts "=" * 60
-    puts "タイトル: #{entry_data[:title]}"
-    puts "投稿日時: #{entry_data[:published]}"
-    puts "URL: #{entry_data[:url]}"
-    puts "=" * 60
-    puts "本文（Markdown）:"
-    puts "-" * 60
-    puts entry_data[:content]
-    puts "=" * 60
-  end
-
-  # エラーを処理する
-  #
-  # @param error [StandardError] 発生したエラー
-  # @return [void]
-  def handle_error(error)
-    warn "エラー: #{error.message}"
-    warn error.backtrace
-    exit 1
   end
 end
 
@@ -668,7 +670,7 @@ end
 #
 # @return [void]
 def main
-  CommandLineInterface.run(ARGV)
+  HatenaBlogFetcher::CLI.run(ARGV)
 end
 
 main if __FILE__ == $PROGRAM_NAME

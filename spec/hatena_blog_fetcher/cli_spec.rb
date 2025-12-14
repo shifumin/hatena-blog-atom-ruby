@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require_relative "../hatena_blog_fetcher"
+require_relative "../../hatena_blog_fetcher"
 
-RSpec.describe CommandLineInterface do
+RSpec.describe HatenaBlogFetcher::CLI do
   let(:api_key) { "test_api_key_12345" }
   let(:cli) { described_class.new }
 

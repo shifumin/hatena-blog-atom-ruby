@@ -161,101 +161,103 @@ class HatenaBlogPoster
   end
 end
 
-# コマンドラインインターフェースを提供するクラス
-class CommandLineInterface
-  def self.run(args)
-    new.run(args)
-  end
-
-  def run(args)
-    options = parse_options(args)
-    validate_options!(options)
-
-    content = read_content_file(options[:file])
-    draft = !options[:publish]
-    result = post_entry(options[:title], content, draft)
-    output_result(result, draft)
-  rescue StandardError => e
-    handle_error(e)
-  end
-
-  private
-
-  def parse_options(args)
-    options = { publish: false }
-    parser = create_option_parser(options)
-    parser.parse!(args)
-    options
-  end
-
-  def create_option_parser(options)
-    OptionParser.new do |opts|
-      opts.banner = "使用方法: ruby #{$PROGRAM_NAME} [オプション]"
-      opts.separator ""
-      opts.separator "はてなブログに記事を投稿します"
-      opts.separator ""
-      opts.separator "オプション:"
-
-      define_options(opts, options)
-    end
-  end
-
-  def define_options(opts, options)
-    opts.on("-h", "--help", "このヘルプを表示") do
-      puts opts
-      exit
+class HatenaBlogPoster
+  # コマンドラインインターフェースを提供するクラス
+  class CLI
+    def self.run(args)
+      new.run(args)
     end
 
-    opts.on("-t", "--title TITLE", "記事タイトル（必須）") do |title|
-      options[:title] = title
+    def run(args)
+      options = parse_options(args)
+      validate_options!(options)
+
+      content = read_content_file(options[:file])
+      draft = !options[:publish]
+      result = post_entry(options[:title], content, draft)
+      output_result(result, draft)
+    rescue StandardError => e
+      handle_error(e)
     end
 
-    opts.on("-f", "--file FILE", "Markdownファイルパス（必須）") do |file|
-      options[:file] = file
+    private
+
+    def parse_options(args)
+      options = { publish: false }
+      parser = create_option_parser(options)
+      parser.parse!(args)
+      options
     end
 
-    opts.on("-p", "--publish", "公開する（デフォルトは下書き）") do
-      options[:publish] = true
+    def create_option_parser(options)
+      OptionParser.new do |opts|
+        opts.banner = "使用方法: ruby #{$PROGRAM_NAME} [オプション]"
+        opts.separator ""
+        opts.separator "はてなブログに記事を投稿します"
+        opts.separator ""
+        opts.separator "オプション:"
+
+        define_options(opts, options)
+      end
     end
-  end
 
-  def validate_options!(options)
-    errors = []
-    errors << "タイトル（-t）は必須です" unless options[:title]
-    errors << "ファイル（-f）は必須です" unless options[:file]
+    def define_options(opts, options)
+      opts.on("-h", "--help", "このヘルプを表示") do
+        puts opts
+        exit
+      end
 
-    return if errors.empty?
+      opts.on("-t", "--title TITLE", "記事タイトル（必須）") do |title|
+        options[:title] = title
+      end
 
-    raise ArgumentError, errors.join("\n")
-  end
+      opts.on("-f", "--file FILE", "Markdownファイルパス（必須）") do |file|
+        options[:file] = file
+      end
 
-  def read_content_file(file_path)
-    raise ArgumentError, "ファイルが見つかりません: #{file_path}" unless File.exist?(file_path)
+      opts.on("-p", "--publish", "公開する（デフォルトは下書き）") do
+        options[:publish] = true
+      end
+    end
 
-    File.read(file_path)
-  end
+    def validate_options!(options)
+      errors = []
+      errors << "タイトル（-t）は必須です" unless options[:title]
+      errors << "ファイル（-f）は必須です" unless options[:file]
 
-  def post_entry(title, content, draft)
-    poster = HatenaBlogPoster.new
-    poster.post_entry(title: title, content: content, draft: draft)
-  end
+      return if errors.empty?
 
-  def output_result(result, draft)
-    status = draft ? "下書き" : "公開"
-    puts "投稿が完了しました（#{status}）"
-    puts "タイトル: #{result[:title]}"
-    url = draft ? result[:edit_url] : result[:url]
-    puts "URL: #{url}"
-  end
+      raise ArgumentError, errors.join("\n")
+    end
 
-  def handle_error(error)
-    warn "エラー: #{error.message}"
-    exit 1
+    def read_content_file(file_path)
+      raise ArgumentError, "ファイルが見つかりません: #{file_path}" unless File.exist?(file_path)
+
+      File.read(file_path)
+    end
+
+    def post_entry(title, content, draft)
+      poster = HatenaBlogPoster.new
+      poster.post_entry(title: title, content: content, draft: draft)
+    end
+
+    def output_result(result, draft)
+      status = draft ? "下書き" : "公開"
+      puts "投稿が完了しました（#{status}）"
+      puts "タイトル: #{result[:title]}"
+      url = draft ? result[:edit_url] : result[:url]
+      puts "URL: #{url}"
+    end
+
+    def handle_error(error)
+      warn "エラー: #{error.message}"
+      exit 1
+    end
   end
 end
 
 def main
-  CommandLineInterface.run(ARGV)
+  HatenaBlogPoster::CLI.run(ARGV)
 end
 
 main if __FILE__ == $PROGRAM_NAME
