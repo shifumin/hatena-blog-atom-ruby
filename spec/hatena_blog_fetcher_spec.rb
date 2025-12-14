@@ -506,5 +506,4 @@ RSpec.describe HatenaBlogFetcher do
       end
     end
   end
-
 end
