@@ -12,16 +12,40 @@ require "date"
 require "optparse"
 require "openssl"
 
+# はてなブログAtomPub APIを使用してブログ記事を取得するクラス
+#
+# @example 基本的な使用方法
+#   fetcher = HatenaBlogFetcher.new
+#   entry = fetcher.fetch_entry("https://example.hatenadiary.com/entry/2024/01/01/120000")
+#   puts entry[:title]
+#
+# @see https://developer.hatena.ne.jp/ja/documents/blog/apis/atom
 class HatenaBlogFetcher
+  # @return [String] はてなID
   HATENA_ID = "shifumin"
+  # @return [String] ブログID（ドメイン）
   BLOG_ID = "shifumin.hatenadiary.com"
+  # @return [String] AtomPub APIエンドポイント
   API_ENDPOINT = "https://blog.hatena.ne.jp/#{HATENA_ID}/#{BLOG_ID}/atom/entry".freeze
 
+  # HatenaBlogFetcherの新しいインスタンスを作成する
+  #
+  # @raise [ArgumentError] 環境変数HATENA_API_KEYが設定されていない場合
   def initialize
     @api_key = ENV.fetch("HATENA_API_KEY", nil)
     validate_api_key!
   end
 
+  # 指定されたURLからブログ記事を取得する
+  #
+  # @param entry_url [String] 記事のURL（日付ベースまたはエントリーID形式）
+  # @return [Hash] 記事データ
+  # @option return [String] :title 記事タイトル
+  # @option return [String] :content 記事本文（Markdown）
+  # @option return [String] :published 投稿日時（YYYY-MM-DD HH:MM:SS形式）
+  # @option return [String] :url 記事URL
+  # @raise [RuntimeError] 記事が見つからない場合
+  # @raise [RuntimeError] APIリクエストが失敗した場合
   def fetch_entry(entry_url)
     if date_based_url?(entry_url)
       fetch_entry_by_date(entry_url)
@@ -30,6 +54,11 @@ class HatenaBlogFetcher
     end
   end
 
+  # 日付と時刻から記事を検索する
+  #
+  # @param target_date [String] 検索対象の日付（YYYY-MM-DD形式）
+  # @param time_part [String] 検索対象の時刻（HHMMSS形式）
+  # @return [Hash, nil] 記事データ、見つからない場合はnil
   def find_entry_by_date(target_date, time_part)
     matching_entry = search_entry_in_pages(target_date, time_part)
     return nil unless matching_entry
@@ -39,10 +68,19 @@ class HatenaBlogFetcher
 
   private
 
+  # URLが日付ベース形式かどうかを判定する
+  #
+  # @param url [String] 判定対象のURL
+  # @return [Boolean] 日付ベース形式の場合true
   def date_based_url?(url)
     url.match?(%r{/entry/(\d{4})/(\d{2})/(\d{2})/(\d+)})
   end
 
+  # 日付ベースURLから記事を取得する
+  #
+  # @param entry_url [String] 日付ベース形式の記事URL
+  # @return [Hash] 記事データ
+  # @raise [RuntimeError] 記事が見つからない場合
   def fetch_entry_by_date(entry_url)
     date_match = entry_url.match(%r{/entry/(\d{4})/(\d{2})/(\d{2})/(\d+)})
     year, month, day, time = date_match[1..4]
@@ -59,6 +97,11 @@ class HatenaBlogFetcher
     raise "指定された日付の記事が見つかりませんでした: #{entry_url}"
   end
 
+  # エントリーIDから記事を取得する
+  #
+  # @param entry_url [String] 記事URL
+  # @return [Hash] 記事データ
+  # @raise [RuntimeError] APIリクエストが失敗した場合
   def fetch_entry_by_id(entry_url)
     entry_id = extract_entry_id(entry_url)
     entry_api_url = "#{API_ENDPOINT}/#{entry_id}"
@@ -67,6 +110,9 @@ class HatenaBlogFetcher
     parse_entry(response.body)
   end
 
+  # APIキーの存在を検証する
+  #
+  # @raise [ArgumentError] APIキーが未設定または空の場合
   def validate_api_key!
     return unless @api_key.nil? || @api_key.empty?
 
@@ -74,6 +120,11 @@ class HatenaBlogFetcher
                          "export HATENA_API_KEY='あなたのAPIキー' を実行してください。"
   end
 
+  # URLからエントリーIDを抽出する
+  #
+  # @param url [String] 記事URL
+  # @return [String] エントリーID
+  # @raise [ArgumentError] 無効なURL形式の場合
   def extract_entry_id(url)
     # URLパターン例:
     # https://shifumin.hatenadiary.com/entry/2024/01/01/123456
@@ -89,6 +140,9 @@ class HatenaBlogFetcher
     path_parts[(entry_index + 1)..].join("/")
   end
 
+  # WSSE認証ヘッダーを生成する
+  #
+  # @return [String] X-WSSEヘッダー値
   def create_wsse_header
     # ランダムなnonceを生成（バイナリ）
     nonce = SecureRandom.random_bytes(20)
@@ -116,6 +170,11 @@ class HatenaBlogFetcher
       "Created=\"#{created}\""
   end
 
+  # WSSE認証付きでHTTP GETリクエストを実行する
+  #
+  # @param url [String] リクエスト先URL
+  # @return [Net::HTTPResponse] HTTPレスポンス
+  # @raise [RuntimeError] APIリクエストが失敗した場合
   def get_with_wsse_auth(url)
     uri = URI.parse(url)
     http = Net::HTTP.new(uri.host, uri.port)
@@ -137,6 +196,11 @@ class HatenaBlogFetcher
     response
   end
 
+  # SSL証明書ストアを作成する
+  #
+  # CRLチェックは無効化されているが、基本的な証明書検証は維持される
+  #
+  # @return [OpenSSL::X509::Store] 証明書ストア
   def create_cert_store
     store = OpenSSL::X509::Store.new
     store.set_default_paths
@@ -145,6 +209,11 @@ class HatenaBlogFetcher
     store
   end
 
+  # ページを巡回して記事を検索する
+  #
+  # @param target_date [String] 検索対象の日付（YYYY-MM-DD形式）
+  # @param time_part [String] 検索対象の時刻（HHMMSS形式）
+  # @return [String, nil] エントリーID、見つからない場合はnil
   def search_entry_in_pages(target_date, time_part)
     max_pages = 100
     page_count = 0
@@ -174,6 +243,12 @@ class HatenaBlogFetcher
     best_candidate[:entry_id]
   end
 
+  # 1ページ内で一致する記事を検索する
+  #
+  # @param doc [REXML::Document] XMLドキュメント
+  # @param target_date [String] 検索対象の日付（YYYY-MM-DD形式）
+  # @param time_part [String] 検索対象の時刻（HHMMSS形式）
+  # @return [Array<Hash>] 候補記事の配列（entry_id, score, titleを含む）
   def find_matching_entries_in_page(doc, target_date, time_part)
     candidates = []
     doc.elements.each("feed/entry") do |entry|
@@ -189,6 +264,14 @@ class HatenaBlogFetcher
     candidates
   end
 
+  # 記事のマッチスコアを計算する
+  #
+  # スコアが低いほど一致度が高い。完全一致は0を返す。
+  #
+  # @param entry [REXML::Element] 記事のXML要素
+  # @param target_date [String] 検索対象の日付（YYYY-MM-DD形式）
+  # @param time_part [String] 検索対象の時刻（HHMMSS形式）
+  # @return [Integer, nil] マッチスコア、候補外の場合はnil
   def calculate_entry_match_score(entry, target_date, time_part)
     published = entry.elements["published"]&.text
     return nil unless published
@@ -214,18 +297,34 @@ class HatenaBlogFetcher
     (date_diff * 86_400) + time_diff # 日付の差を秒に換算して加算
   end
 
+  # 日付の差を計算する
+  #
+  # @param published_date_str [String] 投稿日（YYYY-MM-DD形式）
+  # @param target_date_str [String] 検索対象日（YYYY-MM-DD形式）
+  # @return [Integer] 日数の差（絶対値）
   def calculate_date_diff(published_date_str, target_date_str)
     published_date = Date.parse(published_date_str)
     target_date = Date.parse(target_date_str)
     (published_date - target_date).abs
   end
 
+  # 時刻の差を計算する
+  #
+  # @param published_time [String] 投稿時刻（HHMMSS形式）
+  # @param target_time [String] 検索対象時刻（HHMMSS形式）
+  # @return [Integer] 秒数の差（絶対値）
   def calculate_time_diff(published_time, target_time)
     published_seconds = convert_hhmmss_to_seconds(published_time)
     target_seconds = convert_hhmmss_to_seconds(target_time)
     (published_seconds - target_seconds).abs
   end
 
+  # 投稿日時文字列をパースする
+  #
+  # @param published_str [String] ISO8601形式の投稿日時
+  # @return [Hash] 日付と時刻を含むハッシュ
+  # @option return [String] :date 日付（YYYY-MM-DD形式）
+  # @option return [String] :time 時刻（HHMMSS形式）
   def parse_published_datetime(published_str)
     parsed_time = Time.parse(published_str)
     {
@@ -234,6 +333,10 @@ class HatenaBlogFetcher
     }
   end
 
+  # HHMMSS形式の時刻を秒数に変換する
+  #
+  # @param time_str [String] HHMMSS形式の時刻
+  # @return [Integer] 0時からの秒数
   def convert_hhmmss_to_seconds(time_str)
     hour = time_str[0, 2].to_i
     min = time_str[2, 2].to_i
@@ -241,6 +344,13 @@ class HatenaBlogFetcher
     (hour * 3600) + (min * 60) + sec
   end
 
+  # URLから見かけ上の日時を構築する
+  #
+  # @param year [String] 年（4桁）
+  # @param month [String] 月（2桁）
+  # @param day [String] 日（2桁）
+  # @param time_str [String] 時刻（HHMMSS形式、6桁未満の場合は0で埋める）
+  # @return [String] 日時文字列（YYYY-MM-DD HH:MM:SS形式）
   def build_apparent_datetime(year, month, day, time_str)
     # HHMMSS形式から時:分:秒を抽出（不足分は0で埋める）
     padded_time = time_str.ljust(6, "0")
@@ -252,6 +362,10 @@ class HatenaBlogFetcher
     "#{year}-#{month}-#{day} #{hour}:#{min}:#{sec}"
   end
 
+  # XML要素からエントリーIDを抽出する
+  #
+  # @param entry [REXML::Element] 記事のXML要素
+  # @return [String, nil] エントリーID、取得できない場合はnil
   def extract_entry_id_from_element(entry)
     id_element = entry.elements["id"]
     return nil unless id_element
@@ -262,6 +376,10 @@ class HatenaBlogFetcher
     id_text.split("-").last
   end
 
+  # XML要素から記事URLを抽出する
+  #
+  # @param entry [REXML::Element] 記事のXML要素
+  # @return [String, nil] 記事URL、取得できない場合はnil
   def extract_url_from_entry_element(entry)
     # link要素からalternateリンクを探す
     link = entry.elements['link[@rel="alternate"]']
@@ -275,17 +393,29 @@ class HatenaBlogFetcher
     "https://#{BLOG_ID}/entry/#{entry_id}"
   end
 
+  # エントリーIDから記事詳細を取得する
+  #
+  # @param entry_id [String] エントリーID
+  # @return [Hash] 記事データ
   def fetch_entry_details(entry_id)
     entry_api_url = "#{API_ENDPOINT}/#{entry_id}"
     detail_response = get_with_wsse_auth(entry_api_url)
     parse_entry(detail_response.body)
   end
 
+  # 次ページのURLを取得する
+  #
+  # @param doc [REXML::Document] XMLドキュメント
+  # @return [String, nil] 次ページのURL、存在しない場合はnil
   def get_next_page_url(doc)
     next_link = doc.elements['feed/link[@rel="next"]']
     next_link&.attributes&.[]("href")
   end
 
+  # XMLレスポンスをパースして記事データを抽出する
+  #
+  # @param xml_body [String] XMLレスポンス本文
+  # @return [Hash] 記事データ
   def parse_entry(xml_body)
     doc = REXML::Document.new(xml_body)
     entry = doc.root
@@ -298,10 +428,18 @@ class HatenaBlogFetcher
     }
   end
 
+  # 記事からタイトルを抽出する
+  #
+  # @param entry [REXML::Element] 記事のXML要素
+  # @return [String] タイトル（取得できない場合は"タイトルなし"）
   def extract_title_from_entry(entry)
     entry.elements["title"]&.text || "タイトルなし"
   end
 
+  # 記事から本文を抽出する
+  #
+  # @param entry [REXML::Element] 記事のXML要素
+  # @return [String] 本文（取得できない場合は"本文なし"）
   def extract_content_from_entry(entry)
     content_element = entry.elements["content"]
     return "本文なし" unless content_element
@@ -309,6 +447,10 @@ class HatenaBlogFetcher
     content_element.text&.rstrip || "本文なし"
   end
 
+  # 記事から投稿日時を抽出する
+  #
+  # @param entry [REXML::Element] 記事のXML要素
+  # @return [String] 投稿日時（YYYY-MM-DD HH:MM:SS形式、取得できない場合は"投稿日時不明"）
   def extract_published_date_from_entry(entry)
     published = entry.elements["published"]&.text
     return "投稿日時不明" unless published
@@ -316,6 +458,10 @@ class HatenaBlogFetcher
     Time.parse(published).strftime("%Y-%m-%d %H:%M:%S")
   end
 
+  # 記事からURLを抽出する
+  #
+  # @param entry [REXML::Element] 記事のXML要素
+  # @return [String, nil] 記事URL
   def extract_url_from_entry(entry)
     # alternateリンクを探す（ブログ記事のURL）
     alternate_link = entry.elements['link[@rel="alternate"]']
@@ -334,11 +480,23 @@ class HatenaBlogFetcher
   end
 end
 
+# コマンドラインインターフェースを提供するクラス
+#
+# @example 基本的な使用方法
+#   CommandLineInterface.run(ARGV)
 class CommandLineInterface
+  # CLIを実行する
+  #
+  # @param args [Array<String>] コマンドライン引数
+  # @return [void]
   def self.run(args)
     new.run(args)
   end
 
+  # インスタンスメソッドとしてCLIを実行する
+  #
+  # @param args [Array<String>] コマンドライン引数
+  # @return [void]
   def run(args)
     options = parse_options(args)
     url = validate_arguments(args)
@@ -351,6 +509,10 @@ class CommandLineInterface
 
   private
 
+  # コマンドラインオプションをパースする
+  #
+  # @param args [Array<String>] コマンドライン引数
+  # @return [Hash] パースされたオプション
   def parse_options(args)
     options = {}
     parser = create_option_parser(options)
@@ -358,6 +520,10 @@ class CommandLineInterface
     options
   end
 
+  # OptionParserインスタンスを作成する
+  #
+  # @param options [Hash] オプションを格納するハッシュ
+  # @return [OptionParser] 設定済みのOptionParser
   def create_option_parser(options)
     OptionParser.new do |opts|
       opts.banner = "使用方法: #{$PROGRAM_NAME} [オプション] URL"
@@ -370,6 +536,11 @@ class CommandLineInterface
     end
   end
 
+  # オプションを定義する
+  #
+  # @param opts [OptionParser] OptionParserインスタンス
+  # @param options [Hash] オプションを格納するハッシュ
+  # @return [void]
   def define_options(opts, options)
     opts.on("-h", "--help", "このヘルプを表示") do
       puts opts
@@ -393,6 +564,10 @@ class CommandLineInterface
     end
   end
 
+  # 引数を検証する
+  #
+  # @param args [Array<String>] コマンドライン引数
+  # @return [String] 検証済みのURL
   def validate_arguments(args)
     if args.empty?
       parser = create_option_parser({})
@@ -402,11 +577,20 @@ class CommandLineInterface
     args[0]
   end
 
+  # 記事を取得する
+  #
+  # @param url [String] 記事URL
+  # @return [Hash] 記事データ
   def fetch_entry(url)
     fetcher = HatenaBlogFetcher.new
     fetcher.fetch_entry(url)
   end
 
+  # 結果を出力する
+  #
+  # @param entry_data [Hash] 記事データ
+  # @param options [Hash] 出力オプション
+  # @return [void]
   def output_result(entry_data, options)
     if options[:raw]
       output_raw_content(entry_data)
@@ -421,22 +605,42 @@ class CommandLineInterface
     end
   end
 
+  # 生のMarkdown本文を出力する
+  #
+  # @param entry_data [Hash] 記事データ
+  # @return [void]
   def output_raw_content(entry_data)
     puts entry_data[:content]
   end
 
+  # タイトルのみを出力する
+  #
+  # @param entry_data [Hash] 記事データ
+  # @return [void]
   def output_title(entry_data)
     puts entry_data[:title]
   end
 
+  # URLのみを出力する
+  #
+  # @param entry_data [Hash] 記事データ
+  # @return [void]
   def output_url(entry_data)
     puts entry_data[:url]
   end
 
+  # 投稿日時のみを出力する
+  #
+  # @param entry_data [Hash] 記事データ
+  # @return [void]
   def output_date(entry_data)
     puts entry_data[:published]
   end
 
+  # 全情報をフォーマットして出力する
+  #
+  # @param entry_data [Hash] 記事データ
+  # @return [void]
   def output_full_format(entry_data)
     puts "=" * 60
     puts "タイトル: #{entry_data[:title]}"
@@ -449,6 +653,10 @@ class CommandLineInterface
     puts "=" * 60
   end
 
+  # エラーを処理する
+  #
+  # @param error [StandardError] 発生したエラー
+  # @return [void]
   def handle_error(error)
     warn "エラー: #{error.message}"
     warn error.backtrace
@@ -456,6 +664,9 @@ class CommandLineInterface
   end
 end
 
+# メインエントリーポイント
+#
+# @return [void]
 def main
   CommandLineInterface.run(ARGV)
 end
