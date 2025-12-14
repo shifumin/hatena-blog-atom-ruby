@@ -127,12 +127,31 @@ class HatenaBlogPoster
   def parse_response(xml_body)
     doc = REXML::Document.new(xml_body)
     entry = doc.root
+    entry_id = extract_entry_id(entry)
 
     {
       title: entry.elements["title"]&.text,
       url: extract_url_from_entry(entry),
+      edit_url: build_edit_url(entry_id),
       published: entry.elements["published"]&.text
     }
+  end
+
+  # エントリからIDを抽出する
+  def extract_entry_id(entry)
+    id_text = entry.elements["id"]&.text
+    return nil unless id_text
+
+    # ID形式: tag:blog.hatena.ne.jp,2013:blog-shifumin-12345-67890
+    # 最後のハイフン以降がエントリID
+    id_text.split("-").last
+  end
+
+  # 編集画面URLを構築する
+  def build_edit_url(entry_id)
+    return nil unless entry_id
+
+    "https://blog.hatena.ne.jp/#{HATENA_ID}/#{BLOG_ID}/edit?entry=#{entry_id}"
   end
 
   # エントリからURLを抽出する
@@ -225,7 +244,8 @@ class CommandLineInterface
     status = draft ? "下書き" : "公開"
     puts "投稿が完了しました（#{status}）"
     puts "タイトル: #{result[:title]}"
-    puts "URL: #{result[:url]}"
+    url = draft ? result[:edit_url] : result[:url]
+    puts "URL: #{url}"
   end
 
   def handle_error(error)
