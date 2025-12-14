@@ -3,6 +3,7 @@
 require "bundler/setup"
 require "webmock/rspec"
 require_relative "../hatena_blog_fetcher"
+require_relative "../hatena_blog_poster"
 
 # Helper method for capturing stdout
 def capture_stdout
