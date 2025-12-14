@@ -82,28 +82,12 @@ For date-based URLs, the script searches through the entry list to find matching
 
 #### HatenaBlogFetcher class
 Main class handling API interactions:
-- `fetch_entry`: Fetches a single entry by URL (routes to appropriate method based on URL type)
-- `find_entry_by_date`: Searches entries by date/time for date-based URLs with pagination support
-- Private helper methods following Single Responsibility Principle:
-  - `date_based_url?`: Checks if URL is date-based format
-  - `fetch_entry_by_date`: Handles date-based URL fetching
-  - `fetch_entry_by_id`: Handles standard entry ID fetching
-  - `search_entry_in_pages`: Manages pagination when searching entries
-  - `parse_entry`: Parses XML response (delegates to specific extraction methods)
-  - `extract_title_from_entry`: Extracts title from XML entry
-  - `extract_content_from_entry`: Extracts and strips trailing whitespace from content
-  - `extract_published_date_from_entry`: Extracts published datetime
-  - `extract_url_from_entry`: Extracts URL from alternate link or constructs from ID
-  - `create_wsse_header`: Generates WSSE authentication header
-  - `get_with_wsse_auth`: Makes authenticated HTTP requests with SSL certificate validation
-  - `create_cert_store`: Creates OpenSSL certificate store with CRL checking disabled
+- `fetch_entry(url)`: Fetches a single entry by URL
+- `find_entry_by_date(date, time)`: Searches entries by date/time with pagination
 
 #### CommandLineInterface class
 Handles CLI interaction and output formatting:
-- `run`: Main entry point for CLI execution
-- `parse_options`: Processes command-line arguments
-- `output_result`: Routes to appropriate output format
-- Separate methods for each output format (raw, title, date, url, full)
+- `run(args)`: Main entry point for CLI execution
 
 ### API Details
 - Endpoint: `https://blog.hatena.ne.jp/{HATENA_ID}/{BLOG_ID}/atom/entry`
@@ -113,44 +97,10 @@ Handles CLI interaction and output formatting:
 
 ## Development Notes
 
-### Recent Improvements
-- **Ruby version upgrade** (2025-10-13):
-  - Upgraded from Ruby 3.4.5 to 3.4.7
-  - Ensures latest security patches and improvements
-- **SSL certificate verification fix** (2025-10-13):
-  - Fixed "unable to get certificate CRL" error
-  - Implemented custom cert_store with CRL checking disabled
-  - Maintained core security features (hostname, expiration, trust chain validation)
-- Added URL output option (`-u, --url`)
-- Changed output label from "投稿日" to "投稿日時" for clarity
-- Refactored `parse_entry` method to follow Single Responsibility Principle
-- Enhanced test coverage for XML field missing scenarios
-- Added test for API errors during pagination
-- Fixed issue with trailing blank lines in content output
-- Separated CLI logic into dedicated CommandLineInterface class
-- Fixed time matching for date-based URLs:
-  - Corrected HHMMSS to seconds conversion in `time_matches?` method
-  - Increased time tolerance from 30 minutes to 1 hour (3600 seconds) for better flexibility
-  - This allows matching articles posted within 1 hour of the specified time in the URL
-- Implemented apparent datetime for date-based URLs:
-  - Date-based URLs now display the apparent datetime from the URL instead of the actual published time
-  - Example: `/entry/2020/03/21/230000` displays as "2020-03-21 23:00:00" regardless of actual publication time
-  - This makes the output consistent with the URL structure and user expectations
-- Enhanced date-based entry matching algorithm:
-  - Added time tolerance check in `calculate_entry_match_score` method
-  - Entries with time differences exceeding 1 hour (3600 seconds) are now excluded from candidates
-  - This prevents incorrect matches when multiple articles exist on the same date
-
-### Testing Coverage
-The project has comprehensive test coverage with RSpec:
-- **HatenaBlogFetcher class**: 23 test cases covering all public methods
-  - Normal cases: Standard URL formats, date-based searches
-  - Edge cases: Missing XML fields, time tolerance boundaries
-  - Error cases: 401/404/500 errors, invalid URLs, API failures
-- **CommandLineInterface class**: 9 test cases for all CLI options
-- WebMock used for mocking HTTP requests
-- Private methods tested through public interface
-- Total: 32 test examples, 100% passing
+### Testing
+- RSpec for unit tests
+- WebMock for HTTP request mocking
+- Coverage includes normal cases, edge cases, and error handling
 
 ### Code Style
 - Uses frozen string literals
@@ -162,8 +112,3 @@ The project has comprehensive test coverage with RSpec:
   - RSpec/ExampleLength: Max 6 (default: 5)
 - All methods follow Single Responsibility Principle
 - No RuboCop violations with current configuration
-
-### Known Issues Resolved
-- **SSL certificate CRL verification error**: Fixed by implementing custom cert_store that disables CRL checking while maintaining core certificate validation
-- **Content trailing whitespace**: Fixed by adding `rstrip` to parsed content
-- **Time matching tolerance**: Corrected time conversion and increased tolerance to 1 hour for date-based URL matching
