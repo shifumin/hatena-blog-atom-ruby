@@ -51,7 +51,7 @@ rspec spec/path/to/spec_file.rb:42
   ```
 
 ### Ruby Version
-- Ruby 3.4.7 (managed via `.ruby-version`)
+- See `.ruby-version`
 
 ## Architecture & Code Structure
 
@@ -105,10 +105,4 @@ Handles CLI interaction and output formatting:
 ### Code Style
 - Uses frozen string literals
 - Follows Ruby community conventions
-- RuboCop and RuboCop-RSpec configured with pragmatic limits:
-  - MethodLength: Max 30 (default: 10)
-  - AbcSize: Max 30 (default: 17)
-  - ClassLength: Disabled (default: 100)
-  - RSpec/ExampleLength: Max 6 (default: 5)
-- All methods follow Single Responsibility Principle
-- No RuboCop violations with current configuration
+- RuboCop and RuboCop-RSpec configured (see `.rubocop.yml`)

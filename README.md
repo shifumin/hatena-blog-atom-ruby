@@ -1,6 +1,5 @@
 # hatena-blog-atom-ruby
 
-[![Ruby](https://img.shields.io/badge/Ruby-3.4.7-red.svg)](https://www.ruby-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 A Ruby script for fetching blog entries from Hatena Blog using the AtomPub API.
@@ -12,7 +11,6 @@ A Ruby script for fetching blog entries from Hatena Blog using the AtomPub API.
 - [Installation](#installation)
 - [Usage](#usage)
 - [Supported URL Formats](#supported-url-formats)
-- [Development](#development)
 - [Configuration](#configuration)
 - [API Reference](#api-reference)
 - [Error Handling](#error-handling)
@@ -33,7 +31,7 @@ A Ruby script for fetching blog entries from Hatena Blog using the AtomPub API.
 
 ## Prerequisites
 
-- Ruby 3.4.7 or higher
+- Ruby (see `.ruby-version`)
 - Hatena Blog API key
 
 ## Installation
@@ -136,19 +134,6 @@ The script supports two types of Hatena Blog URLs:
 
 1. **Date-based URLs**: `https://example.hatenadiary.com/entry/YYYY/MM/DD/HHMMSS`
 2. **Entry ID URLs**: `https://example.hatenadiary.com/entry/YYYYMMDD/1234567890`
-
-## Development
-
-### Project Structure
-
-- `hatena_blog_fetcher.rb` - Main script containing HatenaBlogFetcher and CommandLineInterface classes
-- `spec/` - RSpec test files
-  - `hatena_blog_fetcher_spec.rb` - Tests for HatenaBlogFetcher class
-  - `command_line_interface_spec.rb` - Tests for CommandLineInterface class
-  - `spec_helper.rb` - Test configuration and helper methods
-- `Gemfile` - Ruby dependencies
-- `.rubocop.yml` - RuboCop configuration for code style
-- `CLAUDE.md` - Development notes and guidance for Claude Code
 
 ## Configuration
 
