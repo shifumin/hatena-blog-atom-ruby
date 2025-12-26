@@ -4,13 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Ruby script for fetching blog entries from Hatena Blog using the AtomPub API. The main script `hatena_blog_fetcher.rb` provides a command-line interface to retrieve blog posts by URL.
+Ruby scripts for fetching, posting, and updating blog entries on Hatena Blog using the AtomPub API. The project consists of three main scripts:
+
+- `hatena_blog_fetcher.rb` - Fetch blog entries by URL
+- `hatena_blog_poster.rb` - Post new blog entries
+- `hatena_blog_updater.rb` - Update existing blog entries
 
 ## Development Commands
 
 ### Dependencies
 ```bash
-# Install dependencies
 bundle install
 ```
 
@@ -24,22 +27,33 @@ rubocop -a
 
 # Run RSpec tests
 rspec
+
 # Run specific test file
-rspec spec/path/to/spec_file.rb
-# Run specific test line
-rspec spec/path/to/spec_file.rb:42
+rspec spec/hatena_blog_fetcher_spec.rb
 ```
 
-### Running the Script
-```bash
-# Basic usage
-./hatena_blog_fetcher.rb [URL]
+### Running the Scripts
 
-# Output options
+#### Fetcher (fetch blog entries)
+```bash
+./hatena_blog_fetcher.rb [URL]
 ./hatena_blog_fetcher.rb -r [URL]  # Raw Markdown content only
 ./hatena_blog_fetcher.rb -t [URL]  # Title only
 ./hatena_blog_fetcher.rb -d [URL]  # Date/time only
 ./hatena_blog_fetcher.rb -u [URL]  # URL only
+```
+
+#### Poster (create new entries)
+```bash
+ruby hatena_blog_poster.rb -t "Title" -f content.md      # Post as draft
+ruby hatena_blog_poster.rb -t "Title" -f content.md -p   # Publish immediately
+```
+
+#### Updater (update existing entries)
+```bash
+ruby hatena_blog_updater.rb -i ENTRY_ID -t "Title" -f content.md      # Update by ID (draft)
+ruby hatena_blog_updater.rb -u URL -t "Title" -f content.md           # Update by URL
+ruby hatena_blog_updater.rb -i ENTRY_ID -t "Title" -f content.md -p   # Update and publish
 ```
 
 ## Environment Setup
@@ -56,43 +70,50 @@ rspec spec/path/to/spec_file.rb:42
 ## Architecture & Code Structure
 
 ### Authentication
-The codebase uses WSSE authentication for the Hatena Blog AtomPub API:
+All scripts use WSSE authentication for the Hatena Blog AtomPub API:
 - WSSE header creation with SHA1 digest (`create_wsse_header` method)
 - Nonce generation using SecureRandom
 - Digest calculation: SHA1(nonce + created + api_key)
 
 ### SSL/TLS Configuration
-The script uses custom SSL certificate verification to ensure secure API connections:
-- **Certificate validation**: Enabled (VERIFY_PEER mode)
-- **CRL checking**: Disabled (to avoid "unable to get certificate CRL" errors)
-- **Security features maintained**:
-  - Hostname verification
-  - Certificate expiration checking
-  - Trust chain validation
-- Implementation in `create_cert_store` method using OpenSSL::X509::Store
+Custom SSL certificate verification for secure API connections:
+- Certificate validation: Enabled (VERIFY_PEER mode)
+- CRL checking: Disabled (to avoid "unable to get certificate CRL" errors)
+- Implementation in `create_cert_store` method
 
 ### URL Handling
-The fetcher supports two URL formats:
+Supported URL formats:
 1. Date-based URLs: `/entry/YYYY/MM/DD/HHMMSS`
-2. Entry ID URLs: Standard entry IDs
+2. Entry ID URLs: `/entry/YYYYMMDD/1234567890`
 
-For date-based URLs, the script searches through the entry list to find matching articles by comparing timestamps.
+For date-based URLs, scripts search through the entry list to find matching articles by comparing timestamps.
 
 ### Key Components
 
 #### HatenaBlogFetcher class
-Main class handling API interactions:
+Fetches blog entries from the API:
 - `fetch_entry(url)`: Fetches a single entry by URL
 - `find_entry_by_date(date, time)`: Searches entries by date/time with pagination
 
-#### CommandLineInterface class
-Handles CLI interaction and output formatting:
-- `run(args)`: Main entry point for CLI execution
+#### HatenaBlogPoster class
+Posts new blog entries:
+- `post_entry(title:, content:, draft:)`: Creates a new entry
+
+#### HatenaBlogUpdater class
+Updates existing blog entries:
+- `update_entry(entry_url_or_id:, title:, content:, draft:)`: Updates an existing entry
+- Supports entry ID, entry URL, and date-based URL formats
+
+#### CLI classes
+Each script has an inner `CLI` class handling command-line interaction:
+- `HatenaBlogFetcher::CLI`
+- `HatenaBlogPoster::CLI`
+- `HatenaBlogUpdater::CLI`
 
 ### API Details
 - Endpoint: `https://blog.hatena.ne.jp/{HATENA_ID}/{BLOG_ID}/atom/entry`
 - Authentication: WSSE (X-WSSE header)
-- Response format: Atom XML
+- Request/Response format: Atom XML
 - Content type: text/x-markdown
 
 ## Development Notes
@@ -101,6 +122,11 @@ Handles CLI interaction and output formatting:
 - RSpec for unit tests
 - WebMock for HTTP request mocking
 - Coverage includes normal cases, edge cases, and error handling
+
+### Test Files
+- `spec/hatena_blog_fetcher_spec.rb` / `spec/hatena_blog_fetcher/cli_spec.rb`
+- `spec/hatena_blog_poster_spec.rb` / `spec/hatena_blog_poster/cli_spec.rb`
+- `spec/hatena_blog_updater_spec.rb` / `spec/hatena_blog_updater/cli_spec.rb`
 
 ### Code Style
 - Uses frozen string literals

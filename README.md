@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Ruby scripts for fetching and posting blog entries on Hatena Blog using the AtomPub API.
+Ruby scripts for fetching, posting, and updating blog entries on Hatena Blog using the AtomPub API.
 
 ## Table of Contents
 
@@ -28,6 +28,11 @@ Ruby scripts for fetching and posting blog entries on Hatena Blog using the Atom
 
 ### Poster
 - Post new blog entries from Markdown files
+- Draft/publish mode support
+
+### Updater
+- Update existing blog entries
+- Support for both entry ID and URL (including date-based URLs)
 - Draft/publish mode support
 
 ### Common
@@ -159,6 +164,35 @@ ruby hatena_blog_poster.rb -t "My New Article" -f article.md
 ruby hatena_blog_poster.rb -t "My New Article" -f article.md -p
 ```
 
+### Updating an Entry
+
+Update an existing blog entry:
+```bash
+ruby hatena_blog_updater.rb -i 13574176438046791234 -t "Updated Title" -f updated_content.md
+```
+
+#### Command-line Options (Updater)
+
+- `-u, --url URL` - Entry URL (mutually exclusive with -i)
+- `-i, --id ID` - Entry ID (mutually exclusive with -u)
+- `-t, --title TITLE` - Article title (required)
+- `-f, --file FILE` - Markdown file path (required)
+- `-p, --publish` - Publish immediately (default: draft)
+- `-h, --help` - Display help message
+
+#### Examples (Updater)
+
+```bash
+# Update by entry ID (as draft)
+ruby hatena_blog_updater.rb -i 13574176438046791234 -t "Updated Title" -f content.md
+
+# Update by entry URL
+ruby hatena_blog_updater.rb -u https://shifumin.hatenadiary.com/entry/2024/01/01/123456 -t "Updated Title" -f content.md
+
+# Update and publish immediately
+ruby hatena_blog_updater.rb -i 13574176438046791234 -t "Updated Title" -f content.md -p
+```
+
 ## Supported URL Formats
 
 The fetcher supports two types of Hatena Blog URLs:
@@ -168,7 +202,7 @@ The fetcher supports two types of Hatena Blog URLs:
 
 ## Configuration
 
-The scripts are configured for the blog `shifumin.hatenadiary.com`. To use with a different blog, modify the following constants in both `hatena_blog_fetcher.rb` and `hatena_blog_poster.rb`:
+The scripts are configured for the blog `shifumin.hatenadiary.com`. To use with a different blog, modify the following constants in `hatena_blog_fetcher.rb`, `hatena_blog_poster.rb`, and `hatena_blog_updater.rb`:
 
 ```ruby
 HATENA_ID = 'your-hatena-id'

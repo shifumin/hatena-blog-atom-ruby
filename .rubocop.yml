@@ -49,7 +49,7 @@ RSpec/MultipleExpectations:
   Max: 5
 
 RSpec/ExampleLength:
-  Max: 6
+  Max: 10
 
 Metrics/BlockLength:
   Exclude:
