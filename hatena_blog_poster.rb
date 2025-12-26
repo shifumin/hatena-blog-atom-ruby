@@ -12,13 +12,16 @@ require "openssl"
 
 # はてなブログAtomPub APIを使用してブログ記事を投稿するクラス
 class HatenaBlogPoster
-  HATENA_ID = "shifumin"
-  BLOG_ID = "shifumin.hatenadiary.com"
-  API_ENDPOINT = "https://blog.hatena.ne.jp/#{HATENA_ID}/#{BLOG_ID}/atom/entry".freeze
-
   def initialize
+    @hatena_id = ENV.fetch("HATENA_ID", nil)
+    @blog_id = ENV.fetch("HATENA_BLOG_ID", nil)
     @api_key = ENV.fetch("HATENA_API_KEY", nil)
-    validate_api_key!
+    validate_credentials!
+  end
+
+  # @return [String] AtomPub APIエンドポイント
+  def api_endpoint
+    @api_endpoint ||= "https://blog.hatena.ne.jp/#{@hatena_id}/#{@blog_id}/atom/entry"
   end
 
   # 記事を投稿する
@@ -29,17 +32,24 @@ class HatenaBlogPoster
   # @return [Hash] 投稿結果
   def post_entry(title:, content:, draft: false)
     xml_body = build_entry_xml(title, content, draft)
-    response = post_with_wsse_auth(API_ENDPOINT, xml_body)
+    response = post_with_wsse_auth(api_endpoint, xml_body)
     parse_response(response.body)
   end
 
   private
 
-  def validate_api_key!
-    return unless @api_key.nil? || @api_key.empty?
+  def validate_credentials!
+    missing = []
+    missing << "HATENA_ID" if @hatena_id.nil? || @hatena_id.empty?
+    missing << "HATENA_BLOG_ID" if @blog_id.nil? || @blog_id.empty?
+    missing << "HATENA_API_KEY" if @api_key.nil? || @api_key.empty?
 
-    raise ArgumentError, "環境変数 HATENA_API_KEY が設定されていません。\n" \
-                         "export HATENA_API_KEY='あなたのAPIキー' を実行してください。"
+    return if missing.empty?
+
+    raise ArgumentError, "以下の環境変数が設定されていません: #{missing.join(', ')}\n" \
+                         "export HATENA_ID='your-hatena-id'\n" \
+                         "export HATENA_BLOG_ID='your-subdomain.hatenablog.com'\n" \
+                         "export HATENA_API_KEY='your-api-key'"
   end
 
   # Atom XML形式のエントリを構築する
@@ -54,7 +64,7 @@ class HatenaBlogPoster
     entry.add_element("title").add_text(title)
 
     author = entry.add_element("author")
-    author.add_element("name").add_text(HATENA_ID)
+    author.add_element("name").add_text(@hatena_id)
 
     content_element = entry.add_element("content")
     content_element.add_attribute("type", "text/x-markdown")
@@ -86,7 +96,7 @@ class HatenaBlogPoster
 
     nonce_base64 = Base64.strict_encode64(nonce)
 
-    "UsernameToken Username=\"#{HATENA_ID}\", " \
+    "UsernameToken Username=\"#{@hatena_id}\", " \
       "PasswordDigest=\"#{password_digest}\", " \
       "Nonce=\"#{nonce_base64}\", " \
       "Created=\"#{created}\""
@@ -142,7 +152,7 @@ class HatenaBlogPoster
     id_text = entry.elements["id"]&.text
     return nil unless id_text
 
-    # ID形式: tag:blog.hatena.ne.jp,2013:blog-shifumin-12345-67890
+    # ID形式: tag:blog.hatena.ne.jp,2013:blog-{hatena_id}-12345-67890
     # 最後のハイフン以降がエントリID
     id_text.split("-").last
   end
@@ -151,7 +161,7 @@ class HatenaBlogPoster
   def build_edit_url(entry_id)
     return nil unless entry_id
 
-    "https://blog.hatena.ne.jp/#{HATENA_ID}/#{BLOG_ID}/edit?entry=#{entry_id}"
+    "https://blog.hatena.ne.jp/#{@hatena_id}/#{@blog_id}/edit?entry=#{entry_id}"
   end
 
   # エントリからURLを抽出する

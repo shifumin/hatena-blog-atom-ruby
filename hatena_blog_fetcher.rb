@@ -21,19 +21,19 @@ require "openssl"
 #
 # @see https://developer.hatena.ne.jp/ja/documents/blog/apis/atom
 class HatenaBlogFetcher
-  # @return [String] はてなID
-  HATENA_ID = "shifumin"
-  # @return [String] ブログID（ドメイン）
-  BLOG_ID = "shifumin.hatenadiary.com"
-  # @return [String] AtomPub APIエンドポイント
-  API_ENDPOINT = "https://blog.hatena.ne.jp/#{HATENA_ID}/#{BLOG_ID}/atom/entry".freeze
-
   # HatenaBlogFetcherの新しいインスタンスを作成する
   #
-  # @raise [ArgumentError] 環境変数HATENA_API_KEYが設定されていない場合
+  # @raise [ArgumentError] 必須の環境変数が設定されていない場合
   def initialize
+    @hatena_id = ENV.fetch("HATENA_ID", nil)
+    @blog_id = ENV.fetch("HATENA_BLOG_ID", nil)
     @api_key = ENV.fetch("HATENA_API_KEY", nil)
-    validate_api_key!
+    validate_credentials!
+  end
+
+  # @return [String] AtomPub APIエンドポイント
+  def api_endpoint
+    @api_endpoint ||= "https://blog.hatena.ne.jp/#{@hatena_id}/#{@blog_id}/atom/entry"
   end
 
   # 指定されたURLからブログ記事を取得する
@@ -104,20 +104,27 @@ class HatenaBlogFetcher
   # @raise [RuntimeError] APIリクエストが失敗した場合
   def fetch_entry_by_id(entry_url)
     entry_id = extract_entry_id(entry_url)
-    entry_api_url = "#{API_ENDPOINT}/#{entry_id}"
+    entry_api_url = "#{api_endpoint}/#{entry_id}"
 
     response = get_with_wsse_auth(entry_api_url)
     parse_entry(response.body)
   end
 
-  # APIキーの存在を検証する
+  # 認証情報の存在を検証する
   #
-  # @raise [ArgumentError] APIキーが未設定または空の場合
-  def validate_api_key!
-    return unless @api_key.nil? || @api_key.empty?
+  # @raise [ArgumentError] 必須の環境変数が未設定または空の場合
+  def validate_credentials!
+    missing = []
+    missing << "HATENA_ID" if @hatena_id.nil? || @hatena_id.empty?
+    missing << "HATENA_BLOG_ID" if @blog_id.nil? || @blog_id.empty?
+    missing << "HATENA_API_KEY" if @api_key.nil? || @api_key.empty?
 
-    raise ArgumentError, "環境変数 HATENA_API_KEY が設定されていません。\n" \
-                         "export HATENA_API_KEY='あなたのAPIキー' を実行してください。"
+    return if missing.empty?
+
+    raise ArgumentError, "以下の環境変数が設定されていません: #{missing.join(', ')}\n" \
+                         "export HATENA_ID='your-hatena-id'\n" \
+                         "export HATENA_BLOG_ID='your-subdomain.hatenablog.com'\n" \
+                         "export HATENA_API_KEY='your-api-key'"
   end
 
   # URLからエントリーIDを抽出する
@@ -127,8 +134,8 @@ class HatenaBlogFetcher
   # @raise [ArgumentError] 無効なURL形式の場合
   def extract_entry_id(url)
     # URLパターン例:
-    # https://shifumin.hatenadiary.com/entry/2024/01/01/123456
-    # https://shifumin.hatenadiary.com/entry/20240101/1234567890
+    # https://your-subdomain.hatenablog.com/entry/2024/01/01/123456
+    # https://your-subdomain.hatenablog.com/entry/20240101/1234567890
 
     uri = URI.parse(url)
     path_parts = uri.path.split("/")
@@ -164,7 +171,7 @@ class HatenaBlogFetcher
     nonce_base64 = Base64.strict_encode64(nonce)
 
     # WSSEヘッダーを組み立て
-    "UsernameToken Username=\"#{HATENA_ID}\", " \
+    "UsernameToken Username=\"#{@hatena_id}\", " \
       "PasswordDigest=\"#{password_digest}\", " \
       "Nonce=\"#{nonce_base64}\", " \
       "Created=\"#{created}\""
@@ -217,7 +224,7 @@ class HatenaBlogFetcher
   def search_entry_in_pages(target_date, time_part)
     max_pages = 100
     page_count = 0
-    next_url = API_ENDPOINT
+    next_url = api_endpoint
     candidates = []
 
     while next_url && page_count < max_pages
@@ -390,7 +397,7 @@ class HatenaBlogFetcher
     return nil unless id_element&.text
 
     entry_id = id_element.text.split("-").last
-    "https://#{BLOG_ID}/entry/#{entry_id}"
+    "https://#{@blog_id}/entry/#{entry_id}"
   end
 
   # エントリーIDから記事詳細を取得する
@@ -398,7 +405,7 @@ class HatenaBlogFetcher
   # @param entry_id [String] エントリーID
   # @return [Hash] 記事データ
   def fetch_entry_details(entry_id)
-    entry_api_url = "#{API_ENDPOINT}/#{entry_id}"
+    entry_api_url = "#{api_endpoint}/#{entry_id}"
     detail_response = get_with_wsse_auth(entry_api_url)
     parse_entry(detail_response.body)
   end
@@ -476,7 +483,7 @@ class HatenaBlogFetcher
 
     entry_id = id_text.split("-").last
     # デフォルトのURL形式で構築
-    "https://#{BLOG_ID}/entry/#{entry_id}"
+    "https://#{@blog_id}/entry/#{entry_id}"
   end
 end
 
