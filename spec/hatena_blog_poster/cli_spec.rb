@@ -10,8 +10,8 @@ RSpec.describe HatenaBlogPoster::CLI do
   let(:post_result) do
     {
       title: "Test Title",
-      url: "https://shifumin.hatenadiary.com/entry/2024/01/01/123456",
-      edit_url: "https://blog.hatena.ne.jp/shifumin/shifumin.hatenadiary.com/edit?entry=12345",
+      url: "https://test-blog.hatenablog.com/entry/2024/01/01/123456",
+      edit_url: "https://blog.hatena.ne.jp/test-user/test-blog.hatenablog.com/edit?entry=12345",
       published: "2024-01-01T12:34:56+09:00"
     }
   end

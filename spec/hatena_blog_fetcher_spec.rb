@@ -5,14 +5,7 @@ require "spec_helper"
 RSpec.describe HatenaBlogFetcher do
   let(:api_key) { "test_api_key_12345" }
   let(:fetcher) { described_class.new }
-
-  before do
-    ENV["HATENA_API_KEY"] = api_key
-  end
-
-  after do
-    ENV.delete("HATENA_API_KEY")
-  end
+  let(:api_endpoint) { "https://blog.hatena.ne.jp/test-user/test-blog.hatenablog.com/atom/entry" }
 
   describe "#initialize" do
     context "when API key is set" do
@@ -39,17 +32,17 @@ RSpec.describe HatenaBlogFetcher do
   end
 
   describe "#fetch_entry" do
-    let(:entry_url) { "https://shifumin.hatenadiary.com/entry/2024/01/01/123456" }
-    let(:entry_api_url) { "#{HatenaBlogFetcher::API_ENDPOINT}/2024/01/01/123456" }
+    let(:entry_url) { "https://test-blog.hatenablog.com/entry/2024/01/01/123456" }
+    let(:entry_api_url) { "#{api_endpoint}/2024/01/01/123456" }
     let(:sample_atom_response) do
       <<~XML
         <?xml version="1.0" encoding="utf-8"?>
         <entry xmlns="http://www.w3.org/2005/Atom"
                xmlns:app="http://www.w3.org/2007/app">
-          <id>tag:blog.hatena.ne.jp,2013:blog-shifumin-17680117126972923446-13574176438046791234</id>
-          <link rel="edit" href="https://blog.hatena.ne.jp/shifumin/shifumin.hatenadiary.com/atom/entry/13574176438046791234"/>
-          <link rel="alternate" type="text/html" href="https://shifumin.hatenadiary.com/entry/2024/01/01/123456"/>
-          <author><name>shifumin</name></author>
+          <id>tag:blog.hatena.ne.jp,2013:blog-test-user-17680117126972923446-13574176438046791234</id>
+          <link rel="edit" href="https://blog.hatena.ne.jp/test-user/test-blog.hatenablog.com/atom/entry/13574176438046791234"/>
+          <link rel="alternate" type="text/html" href="https://test-blog.hatenablog.com/entry/2024/01/01/123456"/>
+          <author><name>test-user</name></author>
           <title>Test Article Title</title>
           <published>2024-01-01T12:34:56+09:00</published>
           <updated>2024-01-01T12:34:56+09:00</updated>
@@ -64,8 +57,8 @@ RSpec.describe HatenaBlogFetcher do
     end
 
     context "with standard entry ID URL" do
-      let(:entry_url) { "https://shifumin.hatenadiary.com/entry/20240101/1234567890" }
-      let(:entry_api_url) { "#{HatenaBlogFetcher::API_ENDPOINT}/20240101/1234567890" }
+      let(:entry_url) { "https://test-blog.hatenablog.com/entry/20240101/1234567890" }
+      let(:entry_api_url) { "#{api_endpoint}/20240101/1234567890" }
 
       before do
         stub_request(:get, entry_api_url)
@@ -80,19 +73,19 @@ RSpec.describe HatenaBlogFetcher do
         expect(result[:content]).to include("# Test Content")
         expect(result[:content]).to include("**Markdown**")
         expect(result[:published]).to eq("2024-01-01 12:34:56")
-        expect(result[:url]).to eq("https://shifumin.hatenadiary.com/entry/2024/01/01/123456")
+        expect(result[:url]).to eq("https://test-blog.hatenablog.com/entry/2024/01/01/123456")
       end
     end
 
     context "with date-based URL" do
-      let(:entry_url) { "https://shifumin.hatenadiary.com/entry/2024/01/01/123456" }
+      let(:entry_url) { "https://test-blog.hatenablog.com/entry/2024/01/01/123456" }
       let(:list_response) do
         <<~XML
           <?xml version="1.0" encoding="utf-8"?>
           <feed xmlns="http://www.w3.org/2005/Atom">
-            <link rel="next" href="https://blog.hatena.ne.jp/shifumin/shifumin.hatenadiary.com/atom/entry?page=2"/>
+            <link rel="next" href="https://blog.hatena.ne.jp/test-user/test-blog.hatenablog.com/atom/entry?page=2"/>
             <entry>
-              <id>tag:blog.hatena.ne.jp,2013:blog-shifumin-17680117126972923446-13574176438046791234</id>
+              <id>tag:blog.hatena.ne.jp,2013:blog-test-user-17680117126972923446-13574176438046791234</id>
               <published>2024-01-01T12:34:56+09:00</published>
               <title>Test Article Title</title>
             </entry>
@@ -101,11 +94,11 @@ RSpec.describe HatenaBlogFetcher do
       end
 
       before do
-        stub_request(:get, HatenaBlogFetcher::API_ENDPOINT)
+        stub_request(:get, api_endpoint)
           .with(headers: { "Accept" => "application/atom+xml", "X-WSSE" => /UsernameToken/ })
           .to_return(status: 200, body: list_response, headers: { "Content-Type" => "application/atom+xml" })
 
-        stub_request(:get, "#{HatenaBlogFetcher::API_ENDPOINT}/13574176438046791234")
+        stub_request(:get, "#{api_endpoint}/13574176438046791234")
           .with(headers: { "Accept" => "application/atom+xml", "X-WSSE" => /UsernameToken/ })
           .to_return(status: 200, body: sample_atom_response, headers: { "Content-Type" => "application/atom+xml" })
       end
@@ -116,12 +109,12 @@ RSpec.describe HatenaBlogFetcher do
         expect(result[:title]).to eq("Test Article Title")
         # Date-based URLの場合、URLから導出された見かけの日時を返す（実際のpublished時刻に関わらず）
         expect(result[:published]).to eq("2024-01-01 12:34:56") # URLの/2024/01/01/123456から12:34:56
-        expect(result[:url]).to eq("https://shifumin.hatenadiary.com/entry/2024/01/01/123456")
+        expect(result[:url]).to eq("https://test-blog.hatenablog.com/entry/2024/01/01/123456")
       end
     end
 
     context "when entry is not found" do
-      let(:entry_url) { "https://shifumin.hatenadiary.com/entry/2024/12/31/235959" }
+      let(:entry_url) { "https://test-blog.hatenablog.com/entry/2024/12/31/235959" }
       let(:empty_list_response) do
         <<~XML
           <?xml version="1.0" encoding="utf-8"?>
@@ -131,7 +124,7 @@ RSpec.describe HatenaBlogFetcher do
       end
 
       before do
-        stub_request(:get, HatenaBlogFetcher::API_ENDPOINT)
+        stub_request(:get, api_endpoint)
           .with(headers: { "Accept" => "application/atom+xml", "X-WSSE" => /UsernameToken/ })
           .to_return(status: 200, body: empty_list_response, headers: { "Content-Type" => "application/atom+xml" })
       end
@@ -142,7 +135,7 @@ RSpec.describe HatenaBlogFetcher do
     end
 
     context "with invalid URL" do
-      let(:entry_url) { "https://shifumin.hatenadiary.com/invalid/path" }
+      let(:entry_url) { "https://test-blog.hatenablog.com/invalid/path" }
 
       it "raises ArgumentError" do
         expect { fetcher.fetch_entry(entry_url) }.to raise_error(ArgumentError, /無効なURL/)
@@ -150,13 +143,13 @@ RSpec.describe HatenaBlogFetcher do
     end
 
     context "with content containing trailing whitespace" do
-      let(:entry_url) { "https://shifumin.hatenadiary.com/entry/20240101/1234567890" }
-      let(:entry_api_url) { "#{HatenaBlogFetcher::API_ENDPOINT}/20240101/1234567890" }
+      let(:entry_url) { "https://test-blog.hatenablog.com/entry/20240101/1234567890" }
+      let(:entry_api_url) { "#{api_endpoint}/20240101/1234567890" }
       let(:response_with_trailing_whitespace) do
         <<~XML
           <?xml version="1.0" encoding="utf-8"?>
           <entry xmlns="http://www.w3.org/2005/Atom">
-            <link rel="alternate" type="text/html" href="https://shifumin.hatenadiary.com/entry/20240101/1234567890"/>
+            <link rel="alternate" type="text/html" href="https://test-blog.hatenablog.com/entry/20240101/1234567890"/>
             <title>Test Article</title>
             <published>2024-01-01T12:00:00+09:00</published>
             <content type="text/x-markdown">Content with trailing spaces#{'    '}
@@ -187,15 +180,15 @@ RSpec.describe HatenaBlogFetcher do
     end
 
     context "with XML missing fields" do
-      let(:entry_url) { "https://shifumin.hatenadiary.com/entry/20240101/1234567890" }
-      let(:entry_api_url) { "#{HatenaBlogFetcher::API_ENDPOINT}/20240101/1234567890" }
+      let(:entry_url) { "https://test-blog.hatenablog.com/entry/20240101/1234567890" }
+      let(:entry_api_url) { "#{api_endpoint}/20240101/1234567890" }
 
       context "when title is missing" do
         let(:response_without_title) do
           <<~XML
             <?xml version="1.0" encoding="utf-8"?>
             <entry xmlns="http://www.w3.org/2005/Atom">
-              <link rel="alternate" type="text/html" href="https://shifumin.hatenadiary.com/entry/20240101/1234567890"/>
+              <link rel="alternate" type="text/html" href="https://test-blog.hatenablog.com/entry/20240101/1234567890"/>
               <published>2024-01-01T12:00:00+09:00</published>
               <content type="text/x-markdown">Content without title</content>
             </entry>
@@ -220,7 +213,7 @@ RSpec.describe HatenaBlogFetcher do
             <?xml version="1.0" encoding="utf-8"?>
             <entry xmlns="http://www.w3.org/2005/Atom">
               <title>Title Only</title>
-              <link rel="alternate" type="text/html" href="https://shifumin.hatenadiary.com/entry/20240101/1234567890"/>
+              <link rel="alternate" type="text/html" href="https://test-blog.hatenablog.com/entry/20240101/1234567890"/>
               <published>2024-01-01T12:00:00+09:00</published>
             </entry>
           XML
@@ -248,7 +241,7 @@ RSpec.describe HatenaBlogFetcher do
             <?xml version="1.0" encoding="utf-8"?>
             <entry xmlns="http://www.w3.org/2005/Atom">
               <title>No Date</title>
-              <link rel="alternate" type="text/html" href="https://shifumin.hatenadiary.com/entry/20240101/1234567890"/>
+              <link rel="alternate" type="text/html" href="https://test-blog.hatenablog.com/entry/20240101/1234567890"/>
               <content type="text/x-markdown">Content without date</content>
             </entry>
           XML
@@ -271,7 +264,7 @@ RSpec.describe HatenaBlogFetcher do
           <<~XML
             <?xml version="1.0" encoding="utf-8"?>
             <entry xmlns="http://www.w3.org/2005/Atom">
-              <id>tag:blog.hatena.ne.jp,2013:blog-shifumin-17680117126972923446-13574176438046791234</id>
+              <id>tag:blog.hatena.ne.jp,2013:blog-test-user-17680117126972923446-13574176438046791234</id>
               <title>No Link</title>
               <published>2024-01-01T12:00:00+09:00</published>
               <content type="text/x-markdown">Content without link</content>
@@ -291,14 +284,14 @@ RSpec.describe HatenaBlogFetcher do
 
         it "constructs URL from entry ID" do
           result = fetcher.fetch_entry(entry_url)
-          expect(result[:url]).to eq("https://shifumin.hatenadiary.com/entry/13574176438046791234")
+          expect(result[:url]).to eq("https://test-blog.hatenablog.com/entry/13574176438046791234")
         end
       end
     end
 
     context "when API returns error" do
-      let(:entry_url) { "https://shifumin.hatenadiary.com/entry/20240101/1234567890" }
-      let(:entry_api_url) { "#{HatenaBlogFetcher::API_ENDPOINT}/20240101/1234567890" }
+      let(:entry_url) { "https://test-blog.hatenablog.com/entry/20240101/1234567890" }
+      let(:entry_api_url) { "#{api_endpoint}/20240101/1234567890" }
 
       context "with 401 Unauthorized" do
         before do
@@ -346,7 +339,7 @@ RSpec.describe HatenaBlogFetcher do
       <<~XML
         <?xml version="1.0" encoding="utf-8"?>
         <entry xmlns="http://www.w3.org/2005/Atom">
-          <link rel="alternate" type="text/html" href="https://shifumin.hatenadiary.com/entry/2024/01/01/123456"/>
+          <link rel="alternate" type="text/html" href="https://test-blog.hatenablog.com/entry/2024/01/01/123456"/>
           <title>Target Article</title>
           <published>2024-01-01T12:34:56+09:00</published>
           <content type="text/x-markdown">Found content</content>
@@ -358,7 +351,7 @@ RSpec.describe HatenaBlogFetcher do
         <?xml version="1.0" encoding="utf-8"?>
         <feed xmlns="http://www.w3.org/2005/Atom">
           <entry>
-            <id>tag:blog.hatena.ne.jp,2013:blog-shifumin-17680117126972923446-13574176438046791234</id>
+            <id>tag:blog.hatena.ne.jp,2013:blog-test-user-17680117126972923446-13574176438046791234</id>
             <published>2024-01-01T12:34:56+09:00</published>
             <title>Target Article</title>
           </entry>
@@ -369,9 +362,9 @@ RSpec.describe HatenaBlogFetcher do
       <<~XML
         <?xml version="1.0" encoding="utf-8"?>
         <feed xmlns="http://www.w3.org/2005/Atom">
-          <link rel="next" href="https://blog.hatena.ne.jp/shifumin/shifumin.hatenadiary.com/atom/entry?page=2"/>
+          <link rel="next" href="https://blog.hatena.ne.jp/test-user/test-blog.hatenablog.com/atom/entry?page=2"/>
           <entry>
-            <id>tag:blog.hatena.ne.jp,2013:blog-shifumin-17680117126972923446-99999999999999999999</id>
+            <id>tag:blog.hatena.ne.jp,2013:blog-test-user-17680117126972923446-99999999999999999999</id>
             <published>2024-01-02T00:00:00+09:00</published>
             <title>Different Article</title>
           </entry>
@@ -381,7 +374,7 @@ RSpec.describe HatenaBlogFetcher do
 
     context "when API returns error during pagination" do
       before do
-        stub_request(:get, HatenaBlogFetcher::API_ENDPOINT)
+        stub_request(:get, api_endpoint)
           .with(headers: { "Accept" => "application/atom+xml", "X-WSSE" => /UsernameToken/ })
           .to_return(status: 500, body: "Server Error", headers: {})
       end
@@ -393,7 +386,7 @@ RSpec.describe HatenaBlogFetcher do
 
     context "when entry is found on second page" do
       before do
-        stub_request(:get, HatenaBlogFetcher::API_ENDPOINT)
+        stub_request(:get, api_endpoint)
           .with(headers: { "Accept" => "application/atom+xml", "X-WSSE" => /UsernameToken/ })
           .to_return(
             status: 200,
@@ -401,11 +394,11 @@ RSpec.describe HatenaBlogFetcher do
             headers: { "Content-Type" => "application/atom+xml" }
           )
 
-        stub_request(:get, "https://blog.hatena.ne.jp/shifumin/shifumin.hatenadiary.com/atom/entry?page=2")
+        stub_request(:get, "https://blog.hatena.ne.jp/test-user/test-blog.hatenablog.com/atom/entry?page=2")
           .with(headers: { "Accept" => "application/atom+xml", "X-WSSE" => /UsernameToken/ })
           .to_return(status: 200, body: second_page_response, headers: { "Content-Type" => "application/atom+xml" })
 
-        stub_request(:get, "#{HatenaBlogFetcher::API_ENDPOINT}/13574176438046791234")
+        stub_request(:get, "#{api_endpoint}/13574176438046791234")
           .with(headers: { "Accept" => "application/atom+xml", "X-WSSE" => /UsernameToken/ })
           .to_return(status: 200, body: detail_response, headers: { "Content-Type" => "application/atom+xml" })
       end
@@ -418,7 +411,7 @@ RSpec.describe HatenaBlogFetcher do
         expect(result[:content]).to eq("Found content")
         # find_entry_by_dateはdate-based URL用なので、URLから導出された見かけの日時を返す
         expect(result[:published]).to eq("2024-01-01 12:34:56") # time_part = "123456"から12:34:56
-        expect(result[:url]).to eq("https://shifumin.hatenadiary.com/entry/2024/01/01/123456")
+        expect(result[:url]).to eq("https://test-blog.hatenablog.com/entry/2024/01/01/123456")
       end
     end
 
@@ -432,7 +425,7 @@ RSpec.describe HatenaBlogFetcher do
       end
 
       before do
-        stub_request(:get, HatenaBlogFetcher::API_ENDPOINT)
+        stub_request(:get, api_endpoint)
           .with(headers: { "Accept" => "application/atom+xml", "X-WSSE" => /UsernameToken/ })
           .to_return(status: 200, body: empty_response, headers: { "Content-Type" => "application/atom+xml" })
       end
@@ -449,7 +442,7 @@ RSpec.describe HatenaBlogFetcher do
           <?xml version="1.0" encoding="utf-8"?>
           <feed xmlns="http://www.w3.org/2005/Atom">
             <entry>
-              <id>tag:blog.hatena.ne.jp,2013:blog-shifumin-17680117126972923446-13574176438046791234</id>
+              <id>tag:blog.hatena.ne.jp,2013:blog-test-user-17680117126972923446-13574176438046791234</id>
               <published>2024-01-01T12:35:05+09:00</published>
               <title>Edge Case Article</title>
             </entry>
@@ -458,11 +451,11 @@ RSpec.describe HatenaBlogFetcher do
       end
 
       before do
-        stub_request(:get, HatenaBlogFetcher::API_ENDPOINT)
+        stub_request(:get, api_endpoint)
           .with(headers: { "Accept" => "application/atom+xml", "X-WSSE" => /UsernameToken/ })
           .to_return(status: 200, body: edge_case_response, headers: { "Content-Type" => "application/atom+xml" })
 
-        stub_request(:get, "#{HatenaBlogFetcher::API_ENDPOINT}/13574176438046791234")
+        stub_request(:get, "#{api_endpoint}/13574176438046791234")
           .with(headers: { "Accept" => "application/atom+xml", "X-WSSE" => /UsernameToken/ })
           .to_return(status: 200, body: detail_response, headers: { "Content-Type" => "application/atom+xml" })
       end
@@ -481,7 +474,7 @@ RSpec.describe HatenaBlogFetcher do
           <?xml version="1.0" encoding="utf-8"?>
           <feed xmlns="http://www.w3.org/2005/Atom">
             <entry>
-              <id>tag:blog.hatena.ne.jp,2013:blog-shifumin-17680117126972923446-13574176438046791234</id>
+              <id>tag:blog.hatena.ne.jp,2013:blog-test-user-17680117126972923446-13574176438046791234</id>
               <published>2024-01-01T13:40:00+09:00</published>
               <title>Outside Tolerance Article</title>
             </entry>
@@ -490,7 +483,7 @@ RSpec.describe HatenaBlogFetcher do
       end
 
       before do
-        stub_request(:get, HatenaBlogFetcher::API_ENDPOINT)
+        stub_request(:get, api_endpoint)
           .with(headers: { "Accept" => "application/atom+xml", "X-WSSE" => /UsernameToken/ })
           .to_return(
             status: 200,

@@ -11,8 +11,8 @@ RSpec.describe HatenaBlogUpdater::CLI do
   let(:update_result) do
     {
       title: "Updated Title",
-      url: "https://shifumin.hatenadiary.com/entry/2024/01/01/123456",
-      edit_url: "https://blog.hatena.ne.jp/shifumin/shifumin.hatenadiary.com/edit?entry=#{entry_id}",
+      url: "https://test-blog.hatenablog.com/entry/2024/01/01/123456",
+      edit_url: "https://blog.hatena.ne.jp/test-user/test-blog.hatenablog.com/edit?entry=#{entry_id}",
       published: "2024-01-01T12:34:56+09:00"
     }
   end
@@ -71,7 +71,7 @@ RSpec.describe HatenaBlogUpdater::CLI do
     end
 
     context "with valid options using URL" do
-      let(:entry_url) { "https://shifumin.hatenadiary.com/entry/2024/01/01/123456" }
+      let(:entry_url) { "https://test-blog.hatenablog.com/entry/2024/01/01/123456" }
 
       before do
         allow_any_instance_of(HatenaBlogUpdater).to receive(:update_entry).and_return(update_result)

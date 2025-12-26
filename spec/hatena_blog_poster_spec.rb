@@ -6,14 +6,7 @@ require_relative "../hatena_blog_poster"
 RSpec.describe HatenaBlogPoster do
   let(:api_key) { "test_api_key_12345" }
   let(:poster) { described_class.new }
-
-  before do
-    ENV["HATENA_API_KEY"] = api_key
-  end
-
-  after do
-    ENV.delete("HATENA_API_KEY")
-  end
+  let(:api_endpoint) { "https://blog.hatena.ne.jp/test-user/test-blog.hatenablog.com/atom/entry" }
 
   describe "#initialize" do
     context "when API key is set" do
@@ -45,10 +38,10 @@ RSpec.describe HatenaBlogPoster do
         <?xml version="1.0" encoding="utf-8"?>
         <entry xmlns="http://www.w3.org/2005/Atom"
                xmlns:app="http://www.w3.org/2007/app">
-          <id>tag:blog.hatena.ne.jp,2013:blog-shifumin-17680117126972923446-13574176438046791234</id>
-          <link rel="edit" href="https://blog.hatena.ne.jp/shifumin/shifumin.hatenadiary.com/atom/entry/13574176438046791234"/>
-          <link rel="alternate" type="text/html" href="https://shifumin.hatenadiary.com/entry/2024/01/01/123456"/>
-          <author><name>shifumin</name></author>
+          <id>tag:blog.hatena.ne.jp,2013:blog-test-user-17680117126972923446-13574176438046791234</id>
+          <link rel="edit" href="https://blog.hatena.ne.jp/test-user/test-blog.hatenablog.com/atom/entry/13574176438046791234"/>
+          <link rel="alternate" type="text/html" href="https://test-blog.hatenablog.com/entry/2024/01/01/123456"/>
+          <author><name>test-user</name></author>
           <title>Test Article Title</title>
           <published>2024-01-01T12:34:56+09:00</published>
           <updated>2024-01-01T12:34:56+09:00</updated>
@@ -62,7 +55,7 @@ RSpec.describe HatenaBlogPoster do
 
     context "with draft post" do
       before do
-        stub_request(:post, HatenaBlogPoster::API_ENDPOINT)
+        stub_request(:post, api_endpoint)
           .with(
             headers: {
               "Accept" => "application/atom+xml",
@@ -81,14 +74,14 @@ RSpec.describe HatenaBlogPoster do
       it "sends app:draft as yes" do
         poster.post_entry(title: "Test", content: "Content", draft: true)
 
-        expect(WebMock).to(have_requested(:post, HatenaBlogPoster::API_ENDPOINT)
+        expect(WebMock).to(have_requested(:post, api_endpoint)
           .with { |req| req.body.include?("<app:draft>yes</app:draft>") })
       end
     end
 
     context "with published post" do
       before do
-        stub_request(:post, HatenaBlogPoster::API_ENDPOINT)
+        stub_request(:post, api_endpoint)
           .with(headers: { "X-WSSE" => /UsernameToken/ })
           .to_return(status: 201, body: sample_response, headers: { "Content-Type" => "application/atom+xml" })
       end
@@ -96,14 +89,14 @@ RSpec.describe HatenaBlogPoster do
       it "sends app:draft as no" do
         poster.post_entry(title: "Test", content: "Content", draft: false)
 
-        expect(WebMock).to(have_requested(:post, HatenaBlogPoster::API_ENDPOINT)
+        expect(WebMock).to(have_requested(:post, api_endpoint)
           .with { |req| req.body.include?("<app:draft>no</app:draft>") })
       end
     end
 
     context "when parsing response" do
       before do
-        stub_request(:post, HatenaBlogPoster::API_ENDPOINT)
+        stub_request(:post, api_endpoint)
           .with(headers: { "X-WSSE" => /UsernameToken/ })
           .to_return(status: 201, body: sample_response, headers: { "Content-Type" => "application/atom+xml" })
       end
@@ -115,12 +108,12 @@ RSpec.describe HatenaBlogPoster do
 
       it "extracts url from alternate link" do
         result = poster.post_entry(title: "Test", content: "Content", draft: true)
-        expect(result[:url]).to eq("https://shifumin.hatenadiary.com/entry/2024/01/01/123456")
+        expect(result[:url]).to eq("https://test-blog.hatenablog.com/entry/2024/01/01/123456")
       end
 
       it "builds edit_url from entry id" do
         result = poster.post_entry(title: "Test", content: "Content", draft: true)
-        expect(result[:edit_url]).to eq("https://blog.hatena.ne.jp/shifumin/shifumin.hatenadiary.com/edit?entry=13574176438046791234")
+        expect(result[:edit_url]).to eq("https://blog.hatena.ne.jp/test-user/test-blog.hatenablog.com/edit?entry=13574176438046791234")
       end
 
       it "extracts published date" do
@@ -132,7 +125,7 @@ RSpec.describe HatenaBlogPoster do
     context "when API returns error" do
       context "with 401 Unauthorized" do
         before do
-          stub_request(:post, HatenaBlogPoster::API_ENDPOINT)
+          stub_request(:post, api_endpoint)
             .with(headers: { "X-WSSE" => /UsernameToken/ })
             .to_return(status: 401, body: "Unauthorized", headers: {})
         end
@@ -145,7 +138,7 @@ RSpec.describe HatenaBlogPoster do
 
       context "with 500 Internal Server Error" do
         before do
-          stub_request(:post, HatenaBlogPoster::API_ENDPOINT)
+          stub_request(:post, api_endpoint)
             .with(headers: { "X-WSSE" => /UsernameToken/ })
             .to_return(status: 500, body: "Internal Server Error", headers: {})
         end

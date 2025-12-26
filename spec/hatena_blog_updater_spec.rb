@@ -6,14 +6,7 @@ require_relative "../hatena_blog_updater"
 RSpec.describe HatenaBlogUpdater do
   let(:api_key) { "test_api_key_12345" }
   let(:updater) { described_class.new }
-
-  before do
-    ENV["HATENA_API_KEY"] = api_key
-  end
-
-  after do
-    ENV.delete("HATENA_API_KEY")
-  end
+  let(:api_endpoint) { "https://blog.hatena.ne.jp/test-user/test-blog.hatenablog.com/atom/entry" }
 
   describe "#initialize" do
     context "when API key is set" do
@@ -41,16 +34,16 @@ RSpec.describe HatenaBlogUpdater do
 
   describe "#update_entry" do
     let(:entry_id) { "13574176438046791234" }
-    let(:entry_api_url) { "#{HatenaBlogUpdater::API_ENDPOINT}/#{entry_id}" }
+    let(:entry_api_url) { "#{api_endpoint}/#{entry_id}" }
     let(:sample_response) do
       <<~XML
         <?xml version="1.0" encoding="utf-8"?>
         <entry xmlns="http://www.w3.org/2005/Atom"
                xmlns:app="http://www.w3.org/2007/app">
-          <id>tag:blog.hatena.ne.jp,2013:blog-shifumin-17680117126972923446-#{entry_id}</id>
-          <link rel="edit" href="https://blog.hatena.ne.jp/shifumin/shifumin.hatenadiary.com/atom/entry/#{entry_id}"/>
-          <link rel="alternate" type="text/html" href="https://shifumin.hatenadiary.com/entry/2024/01/01/123456"/>
-          <author><name>shifumin</name></author>
+          <id>tag:blog.hatena.ne.jp,2013:blog-test-user-17680117126972923446-#{entry_id}</id>
+          <link rel="edit" href="https://blog.hatena.ne.jp/test-user/test-blog.hatenablog.com/atom/entry/#{entry_id}"/>
+          <link rel="alternate" type="text/html" href="https://test-blog.hatenablog.com/entry/2024/01/01/123456"/>
+          <author><name>test-user</name></author>
           <title>Updated Article Title</title>
           <published>2024-01-01T12:34:56+09:00</published>
           <updated>2024-01-02T10:00:00+09:00</updated>
@@ -104,8 +97,8 @@ RSpec.describe HatenaBlogUpdater do
     end
 
     context "when updating with entry URL (entry ID format)" do
-      let(:entry_url) { "https://shifumin.hatenadiary.com/entry/20240101/#{entry_id}" }
-      let(:url_entry_api) { "#{HatenaBlogUpdater::API_ENDPOINT}/20240101/#{entry_id}" }
+      let(:entry_url) { "https://test-blog.hatenablog.com/entry/20240101/#{entry_id}" }
+      let(:url_entry_api) { "#{api_endpoint}/20240101/#{entry_id}" }
 
       before do
         stub_request(:put, url_entry_api)
@@ -120,14 +113,14 @@ RSpec.describe HatenaBlogUpdater do
     end
 
     context "when updating with date-based URL" do
-      let(:date_based_url) { "https://shifumin.hatenadiary.com/entry/2024/01/01/123456" }
+      let(:date_based_url) { "https://test-blog.hatenablog.com/entry/2024/01/01/123456" }
       let(:entry_list_response) do
         <<~XML
           <?xml version="1.0" encoding="utf-8"?>
           <feed xmlns="http://www.w3.org/2005/Atom">
             <entry>
-              <id>tag:blog.hatena.ne.jp,2013:blog-shifumin-17680117126972923446-#{entry_id}</id>
-              <link rel="alternate" type="text/html" href="https://shifumin.hatenadiary.com/entry/2024/01/01/123456"/>
+              <id>tag:blog.hatena.ne.jp,2013:blog-test-user-17680117126972923446-#{entry_id}</id>
+              <link rel="alternate" type="text/html" href="https://test-blog.hatenablog.com/entry/2024/01/01/123456"/>
               <published>2024-01-01T12:34:56+09:00</published>
               <title>Test Entry</title>
             </entry>
@@ -136,7 +129,7 @@ RSpec.describe HatenaBlogUpdater do
       end
 
       before do
-        stub_request(:get, HatenaBlogUpdater::API_ENDPOINT)
+        stub_request(:get, api_endpoint)
           .with(headers: { "X-WSSE" => /UsernameToken/ })
           .to_return(status: 200, body: entry_list_response, headers: { "Content-Type" => "application/atom+xml" })
 
@@ -165,11 +158,11 @@ RSpec.describe HatenaBlogUpdater do
       end
 
       it "extracts url from alternate link" do
-        expect(result[:url]).to eq("https://shifumin.hatenadiary.com/entry/2024/01/01/123456")
+        expect(result[:url]).to eq("https://test-blog.hatenablog.com/entry/2024/01/01/123456")
       end
 
       it "builds edit_url from entry id" do
-        expect(result[:edit_url]).to eq("https://blog.hatena.ne.jp/shifumin/shifumin.hatenadiary.com/edit?entry=#{entry_id}")
+        expect(result[:edit_url]).to eq("https://blog.hatena.ne.jp/test-user/test-blog.hatenablog.com/edit?entry=#{entry_id}")
       end
 
       it "extracts published date" do
@@ -216,11 +209,11 @@ RSpec.describe HatenaBlogUpdater do
     end
 
     context "when date-based URL entry is not found" do
-      let(:date_based_url) { "https://shifumin.hatenadiary.com/entry/2024/01/01/999999" }
+      let(:date_based_url) { "https://test-blog.hatenablog.com/entry/2024/01/01/999999" }
       let(:empty_response) { "<?xml version=\"1.0\"?>\n<feed xmlns=\"http://www.w3.org/2005/Atom\"></feed>" }
 
       before do
-        stub_request(:get, HatenaBlogUpdater::API_ENDPOINT)
+        stub_request(:get, api_endpoint)
           .with(headers: { "X-WSSE" => /UsernameToken/ })
           .to_return(status: 200, body: empty_response, headers: { "Content-Type" => "application/atom+xml" })
       end

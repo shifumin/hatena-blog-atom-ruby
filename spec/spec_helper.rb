@@ -16,6 +16,19 @@ ensure
 end
 
 RSpec.configure do |config|
+  # Set up test environment variables (values match test fixtures)
+  config.before do
+    ENV["HATENA_ID"] = "test-user"
+    ENV["HATENA_BLOG_ID"] = "test-blog.hatenablog.com"
+    ENV["HATENA_API_KEY"] = "test_api_key_12345"
+  end
+
+  config.after do
+    ENV.delete("HATENA_ID")
+    ENV.delete("HATENA_BLOG_ID")
+    ENV.delete("HATENA_API_KEY")
+  end
+
   config.expect_with :rspec do |expectations|
     expectations.include_chain_clauses_in_custom_matcher_descriptions = true
   end
