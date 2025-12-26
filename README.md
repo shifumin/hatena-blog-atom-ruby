@@ -59,8 +59,10 @@ cd hatena-blog-atom-ruby
 bundle install
 ```
 
-3. Set up your Hatena Blog API key:
+3. Set up environment variables:
 ```bash
+export HATENA_ID='your-hatena-id'
+export HATENA_BLOG_ID='your-subdomain.hatenablog.com'
 export HATENA_API_KEY='your-api-key-here'
 ```
 
@@ -81,7 +83,7 @@ Alternatively, you can access the API key settings from:
 
 Fetch a blog entry by URL:
 ```bash
-ruby hatena_blog_fetcher.rb https://shifumin.hatenadiary.com/entry/2024/01/01/123456
+ruby hatena_blog_fetcher.rb https://your-subdomain.hatenablog.com/entry/2024/01/01/123456
 ```
 
 #### Command-line Options (Fetcher)
@@ -96,19 +98,19 @@ ruby hatena_blog_fetcher.rb https://shifumin.hatenadiary.com/entry/2024/01/01/12
 
 ```bash
 # Get full entry information (default)
-ruby hatena_blog_fetcher.rb https://shifumin.hatenadiary.com/entry/2024/01/01/123456
+ruby hatena_blog_fetcher.rb https://your-subdomain.hatenablog.com/entry/2024/01/01/123456
 
 # Get only the raw Markdown content
-ruby hatena_blog_fetcher.rb -r https://shifumin.hatenadiary.com/entry/2024/01/01/123456
+ruby hatena_blog_fetcher.rb -r https://your-subdomain.hatenablog.com/entry/2024/01/01/123456
 
 # Get only the title
-ruby hatena_blog_fetcher.rb -t https://shifumin.hatenadiary.com/entry/2024/01/01/123456
+ruby hatena_blog_fetcher.rb -t https://your-subdomain.hatenablog.com/entry/2024/01/01/123456
 
 # Get only the publication datetime
-ruby hatena_blog_fetcher.rb -d https://shifumin.hatenadiary.com/entry/2024/01/01/123456
+ruby hatena_blog_fetcher.rb -d https://your-subdomain.hatenablog.com/entry/2024/01/01/123456
 
 # Get only the URL
-ruby hatena_blog_fetcher.rb -u https://shifumin.hatenadiary.com/entry/2024/01/01/123456
+ruby hatena_blog_fetcher.rb -u https://your-subdomain.hatenablog.com/entry/2024/01/01/123456
 ```
 
 #### Output Examples (Fetcher)
@@ -118,7 +120,7 @@ ruby hatena_blog_fetcher.rb -u https://shifumin.hatenadiary.com/entry/2024/01/01
 ============================================================
 タイトル: サンプル記事タイトル
 投稿日時: 2024-01-01 12:34:56
-URL: https://shifumin.hatenadiary.com/entry/2024/01/01/123456
+URL: https://your-subdomain.hatenablog.com/entry/2024/01/01/123456
 ============================================================
 本文（Markdown）:
 ------------------------------------------------------------
@@ -187,7 +189,7 @@ ruby hatena_blog_updater.rb -i 13574176438046791234 -t "Updated Title" -f update
 ruby hatena_blog_updater.rb -i 13574176438046791234 -t "Updated Title" -f content.md
 
 # Update by entry URL
-ruby hatena_blog_updater.rb -u https://shifumin.hatenadiary.com/entry/2024/01/01/123456 -t "Updated Title" -f content.md
+ruby hatena_blog_updater.rb -u https://your-subdomain.hatenablog.com/entry/2024/01/01/123456 -t "Updated Title" -f content.md
 
 # Update and publish immediately
 ruby hatena_blog_updater.rb -i 13574176438046791234 -t "Updated Title" -f content.md -p
@@ -202,11 +204,18 @@ The fetcher supports two types of Hatena Blog URLs:
 
 ## Configuration
 
-The scripts are configured for the blog `shifumin.hatenadiary.com`. To use with a different blog, modify the following constants in `hatena_blog_fetcher.rb`, `hatena_blog_poster.rb`, and `hatena_blog_updater.rb`:
+Configure the scripts using environment variables:
 
-```ruby
-HATENA_ID = 'your-hatena-id'
-BLOG_ID = 'your-blog.hatenadiary.com'
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `HATENA_ID` | Your Hatena ID | `your-hatena-id` |
+| `HATENA_BLOG_ID` | Your blog domain | `your-subdomain.hatenablog.com` |
+| `HATENA_API_KEY` | Your API key | (see [Obtaining Your API Key](#obtaining-your-api-key)) |
+
+```bash
+export HATENA_ID='your-hatena-id'
+export HATENA_BLOG_ID='your-subdomain.hatenablog.com'
+export HATENA_API_KEY='your-api-key-here'
 ```
 
 ## API Reference
@@ -228,7 +237,7 @@ The fetcher returns the following data structure:
 ## Error Handling
 
 The scripts provide clear error messages for common issues:
-- Missing API key: Prompts to set HATENA_API_KEY environment variable
+- Missing environment variables: Prompts to set HATENA_ID, HATENA_BLOG_ID, and HATENA_API_KEY
 - Invalid URLs: Validates URL format before making API requests
 - Network errors: Reports HTTP status codes and error messages
 - Entry not found: Clear message when date-based search finds no matching entry

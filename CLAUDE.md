@@ -59,10 +59,15 @@ ruby hatena_blog_updater.rb -i ENTRY_ID -t "Title" -f content.md -p   # Update a
 ## Environment Setup
 
 ### Required Environment Variables
-- `HATENA_API_KEY`: Your Hatena Blog API key (required for authentication)
-  ```bash
-  export HATENA_API_KEY='your-api-key-here'
-  ```
+- `HATENA_ID`: Your Hatena ID
+- `HATENA_BLOG_ID`: Your blog domain (e.g., `your-subdomain.hatenablog.com`)
+- `HATENA_API_KEY`: Your Hatena Blog API key
+
+```bash
+export HATENA_ID='your-hatena-id'
+export HATENA_BLOG_ID='your-subdomain.hatenablog.com'
+export HATENA_API_KEY='your-api-key-here'
+```
 
 ### Ruby Version
 - See `.ruby-version`
