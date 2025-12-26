@@ -46,6 +46,8 @@ RSpec.describe HatenaBlogFetcher do
           <title>Test Article Title</title>
           <published>2024-01-01T12:34:56+09:00</published>
           <updated>2024-01-01T12:34:56+09:00</updated>
+          <category term="Ruby"/>
+          <category term="API"/>
           <content type="text/x-markdown"># Test Content
 
         This is a test article with **Markdown** content.</content>
@@ -74,6 +76,21 @@ RSpec.describe HatenaBlogFetcher do
         expect(result[:content]).to include("**Markdown**")
         expect(result[:published]).to eq("2024-01-01 12:34:56")
         expect(result[:url]).to eq("https://test-blog.hatenablog.com/entry/2024/01/01/123456")
+      end
+
+      it "extracts categories from entry" do
+        result = fetcher.fetch_entry(entry_url)
+        expect(result[:categories]).to eq(%w[Ruby API])
+      end
+
+      it "extracts draft status from entry" do
+        result = fetcher.fetch_entry(entry_url)
+        expect(result[:draft]).to be false
+      end
+
+      it "extracts entry_id from entry" do
+        result = fetcher.fetch_entry(entry_url)
+        expect(result[:entry_id]).to eq("13574176438046791234")
       end
     end
 
@@ -285,6 +302,124 @@ RSpec.describe HatenaBlogFetcher do
         it "constructs URL from entry ID" do
           result = fetcher.fetch_entry(entry_url)
           expect(result[:url]).to eq("https://test-blog.hatenablog.com/entry/13574176438046791234")
+        end
+      end
+
+      context "when categories are missing" do
+        let(:response_without_categories) do
+          <<~XML
+            <?xml version="1.0" encoding="utf-8"?>
+            <entry xmlns="http://www.w3.org/2005/Atom"
+                   xmlns:app="http://www.w3.org/2007/app">
+              <id>tag:blog.hatena.ne.jp,2013:blog-test-user-17680117126972923446-13574176438046791234</id>
+              <link rel="alternate" type="text/html" href="https://test-blog.hatenablog.com/entry/20240101/1234567890"/>
+              <title>No Categories</title>
+              <published>2024-01-01T12:00:00+09:00</published>
+              <content type="text/x-markdown">Content without categories</content>
+            </entry>
+          XML
+        end
+
+        before do
+          stub_request(:get, entry_api_url)
+            .with(headers: { "Accept" => "application/atom+xml", "X-WSSE" => /UsernameToken/ })
+            .to_return(
+              status: 200,
+              body: response_without_categories,
+              headers: { "Content-Type" => "application/atom+xml" }
+            )
+        end
+
+        it "returns empty array for categories" do
+          result = fetcher.fetch_entry(entry_url)
+          expect(result[:categories]).to eq([])
+        end
+      end
+
+      context "when draft status is yes" do
+        let(:response_with_draft_yes) do
+          <<~XML
+            <?xml version="1.0" encoding="utf-8"?>
+            <entry xmlns="http://www.w3.org/2005/Atom"
+                   xmlns:app="http://www.w3.org/2007/app">
+              <id>tag:blog.hatena.ne.jp,2013:blog-test-user-17680117126972923446-13574176438046791234</id>
+              <link rel="alternate" type="text/html" href="https://test-blog.hatenablog.com/entry/20240101/1234567890"/>
+              <title>Draft Article</title>
+              <published>2024-01-01T12:00:00+09:00</published>
+              <content type="text/x-markdown">Draft content</content>
+              <app:control>
+                <app:draft>yes</app:draft>
+              </app:control>
+            </entry>
+          XML
+        end
+
+        before do
+          stub_request(:get, entry_api_url)
+            .with(headers: { "Accept" => "application/atom+xml", "X-WSSE" => /UsernameToken/ })
+            .to_return(
+              status: 200,
+              body: response_with_draft_yes,
+              headers: { "Content-Type" => "application/atom+xml" }
+            )
+        end
+
+        it "returns true for draft" do
+          result = fetcher.fetch_entry(entry_url)
+          expect(result[:draft]).to be true
+        end
+      end
+
+      context "when draft element is missing" do
+        let(:response_without_draft) do
+          <<~XML
+            <?xml version="1.0" encoding="utf-8"?>
+            <entry xmlns="http://www.w3.org/2005/Atom"
+                   xmlns:app="http://www.w3.org/2007/app">
+              <id>tag:blog.hatena.ne.jp,2013:blog-test-user-17680117126972923446-13574176438046791234</id>
+              <link rel="alternate" type="text/html" href="https://test-blog.hatenablog.com/entry/20240101/1234567890"/>
+              <title>No Draft Status</title>
+              <published>2024-01-01T12:00:00+09:00</published>
+              <content type="text/x-markdown">Content without draft</content>
+            </entry>
+          XML
+        end
+
+        before do
+          stub_request(:get, entry_api_url)
+            .with(headers: { "Accept" => "application/atom+xml", "X-WSSE" => /UsernameToken/ })
+            .to_return(status: 200, body: response_without_draft, headers: { "Content-Type" => "application/atom+xml" })
+        end
+
+        it "returns false for draft (default)" do
+          result = fetcher.fetch_entry(entry_url)
+          expect(result[:draft]).to be false
+        end
+      end
+
+      context "when id element is missing" do
+        let(:response_without_id) do
+          <<~XML
+            <?xml version="1.0" encoding="utf-8"?>
+            <entry xmlns="http://www.w3.org/2005/Atom"
+                   xmlns:app="http://www.w3.org/2007/app">
+              <link rel="alternate" type="text/html" href="https://test-blog.hatenablog.com/entry/20240101/1234567890"/>
+              <title>No ID</title>
+              <published>2024-01-01T12:00:00+09:00</published>
+              <content type="text/x-markdown">Content without ID</content>
+            </entry>
+          XML
+        end
+
+        before do
+          stub_request(:get, entry_api_url)
+            .with(headers: { "Accept" => "application/atom+xml", "X-WSSE" => /UsernameToken/ })
+            .to_return(status: 200, body: response_without_id, headers: { "Content-Type" => "application/atom+xml" })
+        end
+
+        it "returns nil for entry_id" do
+          result = fetcher.fetch_entry(entry_url)
+          expect(result[:entry_id]).to be_nil
         end
       end
     end

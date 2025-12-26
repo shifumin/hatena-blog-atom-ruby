@@ -431,7 +431,10 @@ class HatenaBlogFetcher
       title: extract_title_from_entry(entry),
       content: extract_content_from_entry(entry),
       published: extract_published_date_from_entry(entry),
-      url: extract_url_from_entry(entry)
+      url: extract_url_from_entry(entry),
+      categories: extract_categories_from_entry(entry),
+      draft: draft_entry?(entry),
+      entry_id: extract_entry_id_from_entry(entry)
     }
   end
 
@@ -484,6 +487,41 @@ class HatenaBlogFetcher
     entry_id = id_text.split("-").last
     # デフォルトのURL形式で構築
     "https://#{@blog_id}/entry/#{entry_id}"
+  end
+
+  # 記事からカテゴリ（タグ）を抽出する
+  #
+  # @param entry [REXML::Element] 記事のXML要素
+  # @return [Array<String>] カテゴリの配列（存在しない場合は空配列）
+  def extract_categories_from_entry(entry)
+    categories = []
+    entry.elements.each("category") do |category|
+      term = category.attributes["term"]
+      categories << term if term
+    end
+    categories
+  end
+
+  # 記事から下書き状態を抽出する
+  #
+  # @param entry [REXML::Element] 記事のXML要素
+  # @return [Boolean] 下書きの場合true、公開済みの場合false
+  def draft_entry?(entry)
+    draft_element = entry.elements["app:control/app:draft"]
+    draft_element&.text == "yes"
+  end
+
+  # 記事からエントリIDを抽出する
+  #
+  # @param entry [REXML::Element] 記事のXML要素
+  # @return [String, nil] エントリID
+  def extract_entry_id_from_entry(entry)
+    id_element = entry.elements["id"]
+    return nil unless id_element&.text
+
+    # ID形式: tag:blog.hatena.ne.jp,2013:blog-{hatena_id}-12345-67890
+    # 最後のハイフン以降がエントリID
+    id_element.text.split("-").last
   end
 end
 
@@ -654,11 +692,24 @@ class HatenaBlogFetcher
       puts "タイトル: #{entry_data[:title]}"
       puts "投稿日時: #{entry_data[:published]}"
       puts "URL: #{entry_data[:url]}"
+      puts "エントリID: #{entry_data[:entry_id]}"
+      puts "カテゴリ: #{format_categories(entry_data[:categories])}"
+      puts "状態: #{entry_data[:draft] ? '下書き' : '公開済み'}"
       puts "=" * 60
       puts "本文（Markdown）:"
       puts "-" * 60
       puts entry_data[:content]
       puts "=" * 60
+    end
+
+    # カテゴリをフォーマットする
+    #
+    # @param categories [Array<String>] カテゴリの配列
+    # @return [String] フォーマット済みカテゴリ
+    def format_categories(categories)
+      return "なし" if categories.nil? || categories.empty?
+
+      categories.join(", ")
     end
 
     # エラーを処理する

@@ -46,6 +46,8 @@ class HatenaBlogUpdater
   # @param title [String] 新しいタイトル
   # @param content [String] 新しい本文（Markdown）
   # @param draft [Boolean] 下書き状態にするか（デフォルト: false）
+  # @param categories [Array<String>] カテゴリ（タグ）の配列（デフォルト: []）
+  # @param updated [String, nil] 投稿日時（ISO8601形式、nilの場合は現在時刻）
   # @return [Hash] 更新結果
   # @option return [String] :title 記事タイトル
   # @option return [String] :url 記事URL
@@ -53,11 +55,11 @@ class HatenaBlogUpdater
   # @option return [String] :published 投稿日時
   # @raise [RuntimeError] 記事が見つからない場合
   # @raise [RuntimeError] APIリクエストが失敗した場合
-  def update_entry(entry_url_or_id:, title:, content:, draft: false)
+  def update_entry(entry_url_or_id:, title:, content:, draft: false, categories: [], updated: nil)
     entry_id = resolve_entry_id(entry_url_or_id)
     entry_api_url = "#{api_endpoint}/#{entry_id}"
 
-    xml_body = build_entry_xml(title, content, draft)
+    xml_body = build_entry_xml(title, content, draft, categories, updated)
     response = put_with_wsse_auth(entry_api_url, xml_body)
     parse_response(response.body)
   end
@@ -300,8 +302,10 @@ class HatenaBlogUpdater
   # @param title [String] 記事タイトル
   # @param content [String] 記事本文（Markdown）
   # @param draft [Boolean] 下書き状態にするか
+  # @param categories [Array<String>] カテゴリ（タグ）の配列
+  # @param updated [String, nil] 投稿日時（ISO8601形式、nilの場合は現在時刻）
   # @return [String] XML文字列
-  def build_entry_xml(title, content, draft)
+  def build_entry_xml(title, content, draft, categories = [], updated = nil)
     doc = REXML::Document.new
     doc << REXML::XMLDecl.new("1.0", "utf-8")
 
@@ -314,11 +318,19 @@ class HatenaBlogUpdater
     author = entry.add_element("author")
     author.add_element("name").add_text(@hatena_id)
 
+    # カテゴリ（タグ）を追加
+    categories.each do |category|
+      cat_element = entry.add_element("category")
+      cat_element.add_attribute("term", category)
+    end
+
     content_element = entry.add_element("content")
     content_element.add_attribute("type", "text/x-markdown")
     content_element.add_text(content)
 
-    entry.add_element("updated").add_text(Time.now.utc.iso8601)
+    # 投稿日時: 指定があればそれを使用、なければ現在時刻
+    updated_time = updated || Time.now.utc.iso8601
+    entry.add_element("updated").add_text(updated_time)
 
     control = entry.add_element("app:control")
     control.add_element("app:draft").add_text(draft ? "yes" : "no")
@@ -488,9 +500,16 @@ class HatenaBlogUpdater
 
       content = read_content_file(options[:file])
       draft = !options[:publish]
-      entry_url_or_id = options[:url] || options[:id]
 
-      result = update_entry(entry_url_or_id, options[:title], content, draft)
+      updater = HatenaBlogUpdater.new
+      result = updater.update_entry(
+        entry_url_or_id: options[:url] || options[:id],
+        title: options[:title],
+        content: content,
+        draft: draft,
+        categories: options[:categories] || [],
+        updated: options[:updated]
+      )
       output_result(result, draft)
     rescue StandardError => e
       handle_error(e)
@@ -555,6 +574,14 @@ class HatenaBlogUpdater
       opts.on("-p", "--publish", "公開する（デフォルトは下書き）") do
         options[:publish] = true
       end
+
+      opts.on("-c", "--categories CATEGORIES", "カテゴリ（カンマ区切り）") do |categories|
+        options[:categories] = categories.split(",").map(&:strip)
+      end
+
+      opts.on("--updated DATETIME", "投稿日時（ISO8601形式）") do |datetime|
+        options[:updated] = datetime
+      end
     end
 
     # オプションを検証する
@@ -587,18 +614,6 @@ class HatenaBlogUpdater
       raise ArgumentError, "ファイルが見つかりません: #{file_path}" unless File.exist?(file_path)
 
       File.read(file_path)
-    end
-
-    # 記事を更新する
-    #
-    # @param entry_url_or_id [String] 記事URLまたはエントリーID
-    # @param title [String] タイトル
-    # @param content [String] 本文
-    # @param draft [Boolean] 下書き状態にするか
-    # @return [Hash] 更新結果
-    def update_entry(entry_url_or_id, title, content, draft)
-      updater = HatenaBlogUpdater.new
-      updater.update_entry(entry_url_or_id: entry_url_or_id, title: title, content: content, draft: draft)
     end
 
     # 結果を出力する

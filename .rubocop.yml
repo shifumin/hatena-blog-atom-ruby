@@ -3,54 +3,56 @@ plugins:
   - rubocop-performance
 
 AllCops:
+  # 新しいCopを自動的に有効化
   NewCops: enable
+  # 拡張機能の提案を無効化
   SuggestExtensions: false
   TargetRubyVersion: 3.4
 
 # Style用の設定
+
+# 文字列リテラルにダブルクォートを使用
 Style/StringLiterals:
   Enabled: true
   EnforcedStyle: double_quotes
 
+# クラス/モジュールのドキュメントコメントを不要に
 Style/Documentation:
   Enabled: false
 
 # Layout用の設定
+
+# 1行の最大文字数
 Layout/LineLength:
   Max: 120
 
 # Metrics用の設定
+
+# メソッドの最大行数
 Metrics/MethodLength:
   Max: 30
 
+# Assignment, Branch, Condition の複雑度
 Metrics/AbcSize:
   Max: 30
 
+# 循環的複雑度
 Metrics/CyclomaticComplexity:
   Max: 10
 
+# 知覚的複雑度
 Metrics/PerceivedComplexity:
   Max: 10
 
+# クラスの行数制限を無効化
 Metrics/ClassLength:
   Enabled: false
 
-# RSpec用の設定
-RSpec/MultipleMemoizedHelpers:
-  Max: 10
+# キーワード引数をパラメータ数のカウント対象外に
+Metrics/ParameterLists:
+  CountKeywordArgs: false
 
-RSpec/NestedGroups:
-  Max: 4
-
-RSpec/AnyInstance:
-  Enabled: false
-
-RSpec/MultipleExpectations:
-  Max: 5
-
-RSpec/ExampleLength:
-  Max: 10
-
+# ブロックの最大行数（specは除外）
 Metrics/BlockLength:
   Exclude:
     - 'spec/**/*'
@@ -60,3 +62,29 @@ Metrics/BlockLength:
     - 'array'
     - 'hash'
     - 'heredoc'
+
+# RSpec用の設定
+
+# letやsubjectの最大数
+RSpec/MultipleMemoizedHelpers:
+  Max: 10
+
+# ネストしたcontextの最大深度
+RSpec/NestedGroups:
+  Max: 4
+
+# allow_any_instance_ofの使用を許可
+RSpec/AnyInstance:
+  Enabled: false
+
+# expect(...).to receive(...)パターンを許可
+RSpec/StubbedMock:
+  Enabled: false
+
+# 1つのexample内のexpectの最大数
+RSpec/MultipleExpectations:
+  Max: 5
+
+# 1つのexampleの最大行数
+RSpec/ExampleLength:
+  Max: 15

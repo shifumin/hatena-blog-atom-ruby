@@ -60,11 +60,16 @@ RSpec.describe HatenaBlogUpdater::CLI do
       end
 
       it "calls update_entry with draft: true by default" do
-        # rubocop:disable RSpec/StubbedMock
         expect_any_instance_of(HatenaBlogUpdater).to receive(:update_entry)
-          .with(entry_url_or_id: entry_id, title: "Updated Title", content: include("Updated Content"), draft: true)
+          .with(
+            entry_url_or_id: entry_id,
+            title: "Updated Title",
+            content: include("Updated Content"),
+            draft: true,
+            categories: [],
+            updated: nil
+          )
           .and_return(update_result)
-        # rubocop:enable RSpec/StubbedMock
 
         capture_stdout { cli.run(["-i", entry_id, "-t", "Updated Title", "-f", temp_file.path]) }
       end
@@ -85,11 +90,16 @@ RSpec.describe HatenaBlogUpdater::CLI do
       end
 
       it "calls update_entry with URL" do
-        # rubocop:disable RSpec/StubbedMock
         expect_any_instance_of(HatenaBlogUpdater).to receive(:update_entry)
-          .with(entry_url_or_id: entry_url, title: "Updated Title", content: include("Updated Content"), draft: true)
+          .with(
+            entry_url_or_id: entry_url,
+            title: "Updated Title",
+            content: include("Updated Content"),
+            draft: true,
+            categories: [],
+            updated: nil
+          )
           .and_return(update_result)
-        # rubocop:enable RSpec/StubbedMock
 
         capture_stdout { cli.run(["-u", entry_url, "-t", "Updated Title", "-f", temp_file.path]) }
       end
@@ -108,13 +118,79 @@ RSpec.describe HatenaBlogUpdater::CLI do
       end
 
       it "calls update_entry with draft: false" do
-        # rubocop:disable RSpec/StubbedMock
         expect_any_instance_of(HatenaBlogUpdater).to receive(:update_entry)
-          .with(entry_url_or_id: entry_id, title: "Updated Title", content: include("Updated Content"), draft: false)
+          .with(
+            entry_url_or_id: entry_id,
+            title: "Updated Title",
+            content: include("Updated Content"),
+            draft: false,
+            categories: [],
+            updated: nil
+          )
           .and_return(update_result)
-        # rubocop:enable RSpec/StubbedMock
 
         capture_stdout { cli.run(["-i", entry_id, "-t", "Updated Title", "-f", temp_file.path, "--publish"]) }
+      end
+    end
+
+    context "with --categories option" do
+      before do
+        allow_any_instance_of(HatenaBlogUpdater).to receive(:update_entry).and_return(update_result)
+      end
+
+      it "calls update_entry with categories array" do
+        expect_any_instance_of(HatenaBlogUpdater).to receive(:update_entry)
+          .with(
+            entry_url_or_id: entry_id,
+            title: "Updated Title",
+            content: include("Updated Content"),
+            draft: true,
+            categories: %w[Ruby API],
+            updated: nil
+          )
+          .and_return(update_result)
+
+        capture_stdout { cli.run(["-i", entry_id, "-t", "Updated Title", "-f", temp_file.path, "-c", "Ruby,API"]) }
+      end
+
+      it "trims whitespace from categories" do
+        expect_any_instance_of(HatenaBlogUpdater).to receive(:update_entry)
+          .with(
+            entry_url_or_id: entry_id,
+            title: "Updated Title",
+            content: include("Updated Content"),
+            draft: true,
+            categories: %w[Ruby API Programming],
+            updated: nil
+          )
+          .and_return(update_result)
+
+        args = ["-i", entry_id, "-t", "Updated Title", "-f", temp_file.path, "-c", "Ruby, API, Programming"]
+        capture_stdout { cli.run(args) }
+      end
+    end
+
+    context "with --updated option" do
+      before do
+        allow_any_instance_of(HatenaBlogUpdater).to receive(:update_entry).and_return(update_result)
+      end
+
+      it "calls update_entry with updated datetime" do
+        custom_time = "2024-12-31T12:00:00+09:00"
+        expect_any_instance_of(HatenaBlogUpdater).to receive(:update_entry)
+          .with(
+            entry_url_or_id: entry_id,
+            title: "Updated Title",
+            content: include("Updated Content"),
+            draft: true,
+            categories: [],
+            updated: custom_time
+          )
+          .and_return(update_result)
+
+        capture_stdout do
+          cli.run(["-i", entry_id, "-t", "Updated Title", "-f", temp_file.path, "--updated", custom_time])
+        end
       end
     end
 

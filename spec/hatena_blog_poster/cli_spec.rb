@@ -59,11 +59,9 @@ RSpec.describe HatenaBlogPoster::CLI do
       end
 
       it "calls post_entry with draft: true by default" do
-        # rubocop:disable RSpec/StubbedMock
         expect_any_instance_of(HatenaBlogPoster).to receive(:post_entry)
           .with(title: "Test Title", content: include("Test Content"), draft: true)
           .and_return(post_result)
-        # rubocop:enable RSpec/StubbedMock
 
         capture_stdout { cli.run(["-t", "Test Title", "-f", temp_file.path]) }
       end
@@ -82,11 +80,9 @@ RSpec.describe HatenaBlogPoster::CLI do
       end
 
       it "calls post_entry with draft: false" do
-        # rubocop:disable RSpec/StubbedMock
         expect_any_instance_of(HatenaBlogPoster).to receive(:post_entry)
           .with(title: "Test Title", content: include("Test Content"), draft: false)
           .and_return(post_result)
-        # rubocop:enable RSpec/StubbedMock
 
         capture_stdout { cli.run(["-t", "Test Title", "-f", temp_file.path, "--publish"]) }
       end

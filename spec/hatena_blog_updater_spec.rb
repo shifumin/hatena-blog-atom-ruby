@@ -56,8 +56,16 @@ RSpec.describe HatenaBlogUpdater do
     end
 
     # Helper method for common update call
-    def do_update(url_or_id: entry_id, title: "Test", content: "Content", draft: false)
-      updater.update_entry(entry_url_or_id: url_or_id, title: title, content: content, draft: draft)
+    def perform_update(url_or_id: entry_id, title: "Test", content: "Content", draft: false, categories: [],
+                       updated: nil)
+      updater.update_entry(
+        entry_url_or_id: url_or_id,
+        title: title,
+        content: content,
+        draft: draft,
+        categories: categories,
+        updated: updated
+      )
     end
 
     context "when updating with entry ID" do
@@ -69,12 +77,12 @@ RSpec.describe HatenaBlogUpdater do
       end
 
       it "updates entry successfully" do
-        result = do_update(title: "Updated Title", content: "# Updated Content")
+        result = perform_update(title: "Updated Title", content: "# Updated Content")
         expect(result[:title]).to eq("Updated Article Title")
       end
 
       it "sends correct XML with draft: no" do
-        do_update
+        perform_update
 
         expect(WebMock).to(have_requested(:put, entry_api_url)
           .with { |req| req.body.include?("<app:draft>no</app:draft>") })
@@ -89,10 +97,62 @@ RSpec.describe HatenaBlogUpdater do
       end
 
       it "sends app:draft as yes" do
-        do_update(draft: true)
+        perform_update(draft: true)
 
         expect(WebMock).to(have_requested(:put, entry_api_url)
           .with { |req| req.body.include?("<app:draft>yes</app:draft>") })
+      end
+    end
+
+    context "when updating with categories" do
+      before do
+        stub_request(:put, entry_api_url)
+          .with(headers: { "X-WSSE" => /UsernameToken/ })
+          .to_return(status: 200, body: sample_response, headers: { "Content-Type" => "application/atom+xml" })
+      end
+
+      it "includes category elements in XML" do
+        perform_update(categories: %w[Ruby API])
+
+        expect(WebMock).to(have_requested(:put, entry_api_url)
+          .with { |req| req.body.include?("<category term='Ruby'/>") && req.body.include?("<category term='API'/>") })
+      end
+
+      it "handles empty categories array" do
+        perform_update(categories: [])
+
+        expect(WebMock).to(have_requested(:put, entry_api_url)
+          .with { |req| !req.body.include?("<category") })
+      end
+
+      it "handles single category" do
+        perform_update(categories: ["Programming"])
+
+        expect(WebMock).to(have_requested(:put, entry_api_url)
+          .with { |req| req.body.include?("<category term='Programming'/>") })
+      end
+    end
+
+    context "when updating with custom updated datetime" do
+      before do
+        stub_request(:put, entry_api_url)
+          .with(headers: { "X-WSSE" => /UsernameToken/ })
+          .to_return(status: 200, body: sample_response, headers: { "Content-Type" => "application/atom+xml" })
+      end
+
+      it "uses provided updated datetime" do
+        custom_time = "2024-12-31T12:00:00+09:00"
+        perform_update(updated: custom_time)
+
+        expect(WebMock).to(have_requested(:put, entry_api_url)
+          .with { |req| req.body.include?("<updated>#{custom_time}</updated>") })
+      end
+
+      it "uses current time when updated is nil" do
+        perform_update(updated: nil)
+
+        expect(WebMock).to(have_requested(:put, entry_api_url)
+          .with { |req| req.body.include?("<updated>") })
       end
     end
 
@@ -107,7 +167,7 @@ RSpec.describe HatenaBlogUpdater do
       end
 
       it "extracts entry ID from URL and updates" do
-        result = do_update(url_or_id: entry_url, title: "Updated Title")
+        result = perform_update(url_or_id: entry_url, title: "Updated Title")
         expect(result[:title]).to eq("Updated Article Title")
       end
     end
@@ -139,13 +199,13 @@ RSpec.describe HatenaBlogUpdater do
       end
 
       it "searches for entry and updates" do
-        result = do_update(url_or_id: date_based_url, title: "Updated Title")
+        result = perform_update(url_or_id: date_based_url, title: "Updated Title")
         expect(result[:title]).to eq("Updated Article Title")
       end
     end
 
     context "when parsing response" do
-      let(:result) { do_update }
+      let(:result) { perform_update }
 
       before do
         stub_request(:put, entry_api_url)
@@ -179,7 +239,7 @@ RSpec.describe HatenaBlogUpdater do
         end
 
         it "raises an error with status code" do
-          expect { do_update }.to raise_error(/APIリクエストが失敗しました: 401/)
+          expect { perform_update }.to raise_error(/APIリクエストが失敗しました: 401/)
         end
       end
 
@@ -191,7 +251,7 @@ RSpec.describe HatenaBlogUpdater do
         end
 
         it "raises an error with status code" do
-          expect { do_update }.to raise_error(/APIリクエストが失敗しました: 404/)
+          expect { perform_update }.to raise_error(/APIリクエストが失敗しました: 404/)
         end
       end
 
@@ -203,7 +263,7 @@ RSpec.describe HatenaBlogUpdater do
         end
 
         it "raises an error with status code and body" do
-          expect { do_update }.to raise_error(/APIリクエストが失敗しました: 500.*Internal Server Error/m)
+          expect { perform_update }.to raise_error(/APIリクエストが失敗しました: 500.*Internal Server Error/m)
         end
       end
     end
@@ -219,7 +279,7 @@ RSpec.describe HatenaBlogUpdater do
       end
 
       it "raises an error" do
-        expect { do_update(url_or_id: date_based_url) }.to raise_error(/指定された日付の記事が見つかりませんでした/)
+        expect { perform_update(url_or_id: date_based_url) }.to raise_error(/指定された日付の記事が見つかりませんでした/)
       end
     end
   end
