@@ -4,19 +4,6 @@
 
 Ruby scripts for fetching, posting, and updating blog entries on Hatena Blog using the AtomPub API.
 
-## Table of Contents
-
-- [Features](#features)
-- [Prerequisites](#prerequisites)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Supported URL Formats](#supported-url-formats)
-- [Configuration](#configuration)
-- [API Reference](#api-reference)
-- [Error Handling](#error-handling)
-- [Contributing](#contributing)
-- [License](#license)
-
 ## Features
 
 ### Fetcher
@@ -66,6 +53,12 @@ export HATENA_BLOG_ID='your-subdomain.hatenablog.com'
 export HATENA_API_KEY='your-api-key-here'
 ```
 
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `HATENA_ID` | Your Hatena ID | `your-hatena-id` |
+| `HATENA_BLOG_ID` | Your blog domain | `your-subdomain.hatenablog.com` |
+| `HATENA_API_KEY` | Your API key | (see below) |
+
 ### Obtaining Your API Key
 
 1. Log in to your Hatena Blog
@@ -86,15 +79,21 @@ Fetch a blog entry by URL:
 ruby hatena_blog_fetcher.rb https://your-subdomain.hatenablog.com/entry/2024/01/01/123456
 ```
 
-#### Command-line Options (Fetcher)
+Supported URL formats:
+- Date-based: `https://example.hatenadiary.com/entry/YYYY/MM/DD/HHMMSS`
+- Entry ID: `https://example.hatenadiary.com/entry/YYYYMMDD/1234567890`
 
-- `-r, --raw` - Output raw Markdown content only
-- `-t, --title` - Output title only
-- `-d, --date` - Output publication datetime only
-- `-u, --url` - Output URL only
-- `-h, --help` - Display help message
+#### Options
 
-#### Examples (Fetcher)
+| Option | Description |
+|--------|-------------|
+| `-r, --raw` | Output raw Markdown content only |
+| `-t, --title` | Output title only |
+| `-d, --date` | Output publication datetime only |
+| `-u, --url` | Output URL only |
+| `-h, --help` | Display help message |
+
+#### Examples
 
 ```bash
 # Get full entry information (default)
@@ -105,17 +104,10 @@ ruby hatena_blog_fetcher.rb -r https://your-subdomain.hatenablog.com/entry/2024/
 
 # Get only the title
 ruby hatena_blog_fetcher.rb -t https://your-subdomain.hatenablog.com/entry/2024/01/01/123456
-
-# Get only the publication datetime
-ruby hatena_blog_fetcher.rb -d https://your-subdomain.hatenablog.com/entry/2024/01/01/123456
-
-# Get only the URL
-ruby hatena_blog_fetcher.rb -u https://your-subdomain.hatenablog.com/entry/2024/01/01/123456
 ```
 
-#### Output Examples (Fetcher)
+#### Output Example
 
-**Full output (default):**
 ```
 ============================================================
 タイトル: サンプル記事タイトル
@@ -130,18 +122,6 @@ URL: https://your-subdomain.hatenablog.com/entry/2024/01/01/123456
 ============================================================
 ```
 
-**Raw markdown output (`-r`):**
-```
-# 見出し
-
-本文のMarkdownコンテンツがここに表示されます。
-```
-
-**Title only (`-t`):**
-```
-サンプル記事タイトル
-```
-
 ### Posting an Entry
 
 Post a new blog entry from a Markdown file:
@@ -149,14 +129,16 @@ Post a new blog entry from a Markdown file:
 ruby hatena_blog_poster.rb -t "Article Title" -f content.md
 ```
 
-#### Command-line Options (Poster)
+#### Options
 
-- `-t, --title TITLE` - Article title (required)
-- `-f, --file FILE` - Markdown file path (required)
-- `-p, --publish` - Publish immediately (default: draft)
-- `-h, --help` - Display help message
+| Option | Description |
+|--------|-------------|
+| `-t, --title TITLE` | Article title (required) |
+| `-f, --file FILE` | Markdown file path (required) |
+| `-p, --publish` | Publish immediately (default: draft) |
+| `-h, --help` | Display help message |
 
-#### Examples (Poster)
+#### Examples
 
 ```bash
 # Post as draft (default)
@@ -173,16 +155,18 @@ Update an existing blog entry:
 ruby hatena_blog_updater.rb -i 13574176438046791234 -t "Updated Title" -f updated_content.md
 ```
 
-#### Command-line Options (Updater)
+#### Options
 
-- `-u, --url URL` - Entry URL (mutually exclusive with -i)
-- `-i, --id ID` - Entry ID (mutually exclusive with -u)
-- `-t, --title TITLE` - Article title (required)
-- `-f, --file FILE` - Markdown file path (required)
-- `-p, --publish` - Publish immediately (default: draft)
-- `-h, --help` - Display help message
+| Option | Description |
+|--------|-------------|
+| `-u, --url URL` | Entry URL (mutually exclusive with -i) |
+| `-i, --id ID` | Entry ID (mutually exclusive with -u) |
+| `-t, --title TITLE` | Article title (required) |
+| `-f, --file FILE` | Markdown file path (required) |
+| `-p, --publish` | Publish immediately (default: draft) |
+| `-h, --help` | Display help message |
 
-#### Examples (Updater)
+#### Examples
 
 ```bash
 # Update by entry ID (as draft)
@@ -195,29 +179,6 @@ ruby hatena_blog_updater.rb -u https://your-subdomain.hatenablog.com/entry/2024/
 ruby hatena_blog_updater.rb -i 13574176438046791234 -t "Updated Title" -f content.md -p
 ```
 
-## Supported URL Formats
-
-The fetcher supports two types of Hatena Blog URLs:
-
-1. **Date-based URLs**: `https://example.hatenadiary.com/entry/YYYY/MM/DD/HHMMSS`
-2. **Entry ID URLs**: `https://example.hatenadiary.com/entry/YYYYMMDD/1234567890`
-
-## Configuration
-
-Configure the scripts using environment variables:
-
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `HATENA_ID` | Your Hatena ID | `your-hatena-id` |
-| `HATENA_BLOG_ID` | Your blog domain | `your-subdomain.hatenablog.com` |
-| `HATENA_API_KEY` | Your API key | (see [Obtaining Your API Key](#obtaining-your-api-key)) |
-
-```bash
-export HATENA_ID='your-hatena-id'
-export HATENA_BLOG_ID='your-subdomain.hatenablog.com'
-export HATENA_API_KEY='your-api-key-here'
-```
-
 ## API Reference
 
 These scripts use the Hatena Blog AtomPub API:
@@ -225,34 +186,6 @@ These scripts use the Hatena Blog AtomPub API:
 - Authentication: WSSE (X-WSSE header)
 - Response format: Atom XML
 - Content type: text/x-markdown
-
-### Output Format
-
-The fetcher returns the following data structure:
-- `title`: Article title
-- `content`: Markdown content (with trailing whitespace removed)
-- `published`: Publication datetime in YYYY-MM-DD HH:MM:SS format
-- `url`: Article URL
-
-## Error Handling
-
-The scripts provide clear error messages for common issues:
-- Missing environment variables: Prompts to set HATENA_ID, HATENA_BLOG_ID, and HATENA_API_KEY
-- Invalid URLs: Validates URL format before making API requests
-- Network errors: Reports HTTP status codes and error messages
-- Entry not found: Clear message when date-based search finds no matching entry
-- API authentication failures: Reports 401 errors with guidance
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Write tests for your changes
-4. Ensure all tests pass (`rspec`)
-5. Check code style (`rubocop`)
-6. Commit your changes (`git commit -m 'Add some amazing feature'`)
-7. Push to the branch (`git push origin feature/amazing-feature`)
-8. Open a Pull Request
 
 ## License
 
