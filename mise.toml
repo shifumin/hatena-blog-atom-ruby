@@ -1,2 +1,4 @@
 [env]
-HATENA_API_KEY = "YOUR_HATENA_API_KEY"
+HATENA_ID = "your-hatena-id"
+HATENA_BLOG_ID = "your-subdomain.hatenablog.com"
+HATENA_API_KEY = "your-api-key"
