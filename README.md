@@ -21,10 +21,6 @@ Ruby scripts for fetching, posting, and updating blog entries on Hatena Blog usi
 - Preserve or modify categories and publication datetime
 - Draft/publish mode support
 
-### Common
-- WSSE authentication for secure API access
-- Secure SSL/TLS connections with certificate validation
-
 ## Prerequisites
 
 - Ruby (see `.ruby-version`)
@@ -188,21 +184,7 @@ ruby hatena_blog_updater.rb -i 13574176438046791234 -t "Updated Title" -f conten
 
 ## API Reference
 
-These scripts use the [Hatena Blog AtomPub API](https://developer.hatena.ne.jp/ja/documents/blog/apis/atom):
-
-- Endpoint: `https://blog.hatena.ne.jp/{hatena_id}/{blog_id}/atom/entry`
-- Authentication: WSSE (X-WSSE header)
-- Content type: `text/x-markdown`
-
-## Development
-
-```bash
-# Run linter
-bundle exec rubocop
-
-# Run tests
-bundle exec rspec
-```
+[Hatena Blog AtomPub API](https://developer.hatena.ne.jp/ja/documents/blog/apis/atom)
 
 ## License
 
