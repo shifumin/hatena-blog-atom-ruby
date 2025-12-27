@@ -5,6 +5,8 @@ require "webmock/rspec"
 require_relative "../hatena_blog_fetcher"
 require_relative "../hatena_blog_poster"
 
+Dir[File.join(__dir__, "support", "**", "*.rb")].each { |f| require f }
+
 # Helper method for capturing stdout
 def capture_stdout
   old_stdout = $stdout

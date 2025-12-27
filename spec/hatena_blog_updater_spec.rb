@@ -4,33 +4,12 @@ require "spec_helper"
 require_relative "../hatena_blog_updater"
 
 RSpec.describe HatenaBlogUpdater do
+  subject(:updater) { described_class.new }
+
   let(:api_key) { "test_api_key_12345" }
-  let(:updater) { described_class.new }
   let(:api_endpoint) { "https://blog.hatena.ne.jp/test-user/test-blog.hatenablog.com/atom/entry" }
 
-  describe "#initialize" do
-    context "when API key is set" do
-      it "initializes successfully" do
-        expect { updater }.not_to raise_error
-      end
-    end
-
-    context "when API key is not set" do
-      before { ENV.delete("HATENA_API_KEY") }
-
-      it "raises ArgumentError" do
-        expect { updater }.to raise_error(ArgumentError, /HATENA_API_KEY/)
-      end
-    end
-
-    context "when API key is empty" do
-      before { ENV["HATENA_API_KEY"] = "" }
-
-      it "raises ArgumentError" do
-        expect { updater }.to raise_error(ArgumentError, /HATENA_API_KEY/)
-      end
-    end
-  end
+  it_behaves_like "API key validation"
 
   describe "#update_entry" do
     let(:entry_id) { "13574176438046791234" }
