@@ -613,7 +613,8 @@ class HatenaBlogUpdater
     def read_content_file(file_path)
       raise ArgumentError, "ファイルが見つかりません: #{file_path}" unless File.exist?(file_path)
 
-      File.read(file_path)
+      content = File.read(file_path)
+      content.gsub("\t", " " * 4)
     end
 
     # 結果を出力する

@@ -133,6 +133,27 @@ RSpec.describe HatenaBlogUpdater::CLI do
       end
     end
 
+    context "with tab characters in file" do
+      let(:temp_file) do
+        file = Tempfile.new(["test", ".md"])
+        file.write("- Item 1\n\t- Nested item")
+        file.close
+        file
+      end
+
+      before do
+        allow_any_instance_of(HatenaBlogUpdater).to receive(:update_entry).and_return(update_result)
+      end
+
+      it "converts tab characters to 4 spaces" do
+        expect_any_instance_of(HatenaBlogUpdater).to receive(:update_entry)
+          .with(hash_including(content: "- Item 1\n    - Nested item"))
+          .and_return(update_result)
+
+        capture_stdout { cli.run(["-i", entry_id, "-t", "Test", "-f", temp_file.path]) }
+      end
+    end
+
     context "with --categories option" do
       before do
         allow_any_instance_of(HatenaBlogUpdater).to receive(:update_entry).and_return(update_result)
