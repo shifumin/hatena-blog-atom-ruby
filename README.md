@@ -161,6 +161,7 @@ ruby hatena_blog_updater.rb [OPTIONS]
 | `-p, --publish` | Publish immediately (default: draft) |
 | `-c, --categories CATEGORIES` | Categories (comma-separated) |
 | `--updated DATETIME` | Publication datetime (ISO8601 format) |
+| `--preserve` | Preserve existing categories/datetime when not specified |
 | `-h, --help` | Display help message |
 
 #### Examples
@@ -180,6 +181,10 @@ ruby hatena_blog_updater.rb -i 13574176438046791234 -t "Updated Title" -f conten
 # Preserve publication datetime
 ruby hatena_blog_updater.rb -i 13574176438046791234 -t "Updated Title" -f content.md \
   --updated "2024-01-01T12:34:56+09:00"
+
+# Update while preserving existing categories and datetime
+ruby hatena_blog_updater.rb -i 13574176438046791234 -t "Updated Title" -f content.md \
+  --preserve
 ```
 
 ## API Reference

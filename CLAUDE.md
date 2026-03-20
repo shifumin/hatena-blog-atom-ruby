@@ -54,6 +54,7 @@ ruby hatena_blog_poster.rb -t "Title" -f content.md -p   # Publish immediately
 ruby hatena_blog_updater.rb -i ENTRY_ID -t "Title" -f content.md      # Update by ID (draft)
 ruby hatena_blog_updater.rb -u URL -t "Title" -f content.md           # Update by URL
 ruby hatena_blog_updater.rb -i ENTRY_ID -t "Title" -f content.md -p   # Update and publish
+ruby hatena_blog_updater.rb -i ENTRY_ID -t "Title" -f content.md --preserve  # Preserve categories/datetime
 ```
 
 ## Environment Setup
@@ -106,8 +107,10 @@ Posts new blog entries:
 
 #### HatenaBlogUpdater class
 Updates existing blog entries:
-- `update_entry(entry_url_or_id:, title:, content:, draft:)`: Updates an existing entry
+- `update_entry(entry_url_or_id:, title:, content:, draft:, categories:, updated:, preserve:)`: Updates an existing entry
+- `fetch_existing_entry(entry_id)`: Fetches existing entry for preserve mode
 - Supports entry ID, entry URL, and date-based URL formats
+- `--preserve` option preserves existing categories/datetime when not specified
 
 #### CLI classes
 Each script has an inner `CLI` class handling command-line interaction:
