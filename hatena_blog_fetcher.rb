@@ -523,9 +523,7 @@ class HatenaBlogFetcher
     # 最後のハイフン以降がエントリID
     id_element.text.split("-").last
   end
-end
 
-class HatenaBlogFetcher
   # コマンドラインインターフェースを提供するクラス
   #
   # @example 基本的な使用方法

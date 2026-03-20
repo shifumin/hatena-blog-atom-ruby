@@ -169,9 +169,7 @@ class HatenaBlogPoster
     alternate_link = entry.elements['link[@rel="alternate"]']
     alternate_link&.attributes&.[]("href")
   end
-end
 
-class HatenaBlogPoster
   # コマンドラインインターフェースを提供するクラス
   class CLI
     def self.run(args)

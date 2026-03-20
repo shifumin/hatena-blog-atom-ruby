@@ -521,9 +521,7 @@ class HatenaBlogUpdater
     alternate_link = entry.elements['link[@rel="alternate"]']
     alternate_link&.attributes&.[]("href")
   end
-end
 
-class HatenaBlogUpdater
   # コマンドラインインターフェースを提供するクラス
   #
   # @example 基本的な使用方法
