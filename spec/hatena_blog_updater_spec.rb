@@ -36,14 +36,15 @@ RSpec.describe HatenaBlogUpdater do
 
     # Helper method for common update call
     def perform_update(url_or_id: entry_id, title: "Test", content: "Content", draft: false, categories: [],
-                       updated: nil)
+                       updated: nil, preserve: false)
       updater.update_entry(
         entry_url_or_id: url_or_id,
         title: title,
         content: content,
         draft: draft,
         categories: categories,
-        updated: updated
+        updated: updated,
+        preserve: preserve
       )
     end
 
@@ -260,6 +261,104 @@ RSpec.describe HatenaBlogUpdater do
       it "raises an error" do
         expect { perform_update(url_or_id: date_based_url) }.to raise_error(/指定された日付の記事が見つかりませんでした/)
       end
+    end
+
+    context "when updating with preserve option" do
+      let(:existing_entry_response) do
+        <<~XML
+          <?xml version="1.0" encoding="utf-8"?>
+          <entry xmlns="http://www.w3.org/2005/Atom"
+                 xmlns:app="http://www.w3.org/2007/app">
+            <id>tag:blog.hatena.ne.jp,2013:blog-test-user-17680117126972923446-#{entry_id}</id>
+            <title>Existing Title</title>
+            <category term="ExistingTag1"/>
+            <category term="ExistingTag2"/>
+            <updated>2024-06-15T10:30:00+09:00</updated>
+            <published>2024-01-01T12:34:56+09:00</published>
+          </entry>
+        XML
+      end
+
+      before do
+        stub_request(:get, entry_api_url)
+          .with(headers: { "X-WSSE" => /UsernameToken/ })
+          .to_return(status: 200, body: existing_entry_response, headers: { "Content-Type" => "application/atom+xml" })
+
+        stub_request(:put, entry_api_url)
+          .with(headers: { "X-WSSE" => /UsernameToken/ })
+          .to_return(status: 200, body: sample_response, headers: { "Content-Type" => "application/atom+xml" })
+      end
+
+      it "fetches existing entry and preserves categories when not specified" do
+        perform_update(preserve: true, categories: [])
+
+        expect(WebMock).to(have_requested(:get, entry_api_url))
+        expect(WebMock).to(have_requested(:put, entry_api_url)
+          .with do |req|
+            req.body.include?("<category term='ExistingTag1'/>") &&
+              req.body.include?("<category term='ExistingTag2'/>")
+          end)
+      end
+
+      it "fetches existing entry and preserves updated datetime when not specified" do
+        perform_update(preserve: true, updated: nil)
+
+        expect(WebMock).to(have_requested(:get, entry_api_url))
+        expect(WebMock).to(have_requested(:put, entry_api_url)
+          .with { |req| req.body.include?("<updated>2024-06-15T10:30:00+09:00</updated>") })
+      end
+
+      it "uses provided categories instead of existing ones when specified" do
+        perform_update(preserve: true, categories: %w[NewTag])
+
+        expect(WebMock).to(have_requested(:put, entry_api_url)
+          .with { |req| req.body.include?("<category term='NewTag'/>") && !req.body.include?("ExistingTag") })
+      end
+
+      it "uses provided updated datetime instead of existing one when specified" do
+        custom_time = "2025-01-01T00:00:00+09:00"
+        perform_update(preserve: true, updated: custom_time)
+
+        expect(WebMock).to(have_requested(:put, entry_api_url)
+          .with { |req| req.body.include?("<updated>#{custom_time}</updated>") })
+      end
+
+      it "does not fetch existing entry when preserve is false" do
+        perform_update(preserve: false)
+
+        expect(WebMock).not_to(have_requested(:get, entry_api_url))
+      end
+    end
+  end
+
+  describe "#fetch_existing_entry" do
+    let(:entry_id) { "13574176438046791234" }
+    let(:entry_api_url) { "#{api_endpoint}/#{entry_id}" }
+    let(:existing_entry_response) do
+      <<~XML
+        <?xml version="1.0" encoding="utf-8"?>
+        <entry xmlns="http://www.w3.org/2005/Atom">
+          <category term="Ruby"/>
+          <category term="API"/>
+          <updated>2024-06-15T10:30:00+09:00</updated>
+        </entry>
+      XML
+    end
+
+    before do
+      stub_request(:get, entry_api_url)
+        .with(headers: { "X-WSSE" => /UsernameToken/ })
+        .to_return(status: 200, body: existing_entry_response, headers: { "Content-Type" => "application/atom+xml" })
+    end
+
+    it "returns categories from existing entry" do
+      result = updater.fetch_existing_entry(entry_id)
+      expect(result[:categories]).to eq(%w[Ruby API])
+    end
+
+    it "returns updated datetime from existing entry" do
+      result = updater.fetch_existing_entry(entry_id)
+      expect(result[:updated]).to eq("2024-06-15T10:30:00+09:00")
     end
   end
 end

@@ -48,6 +48,7 @@ class HatenaBlogUpdater
   # @param draft [Boolean] 下書き状態にするか（デフォルト: false）
   # @param categories [Array<String>] カテゴリ（タグ）の配列（デフォルト: []）
   # @param updated [String, nil] 投稿日時（ISO8601形式、nilの場合は現在時刻）
+  # @param preserve [Boolean] 未指定のカテゴリ・投稿日時を既存値で保持するか（デフォルト: false）
   # @return [Hash] 更新結果
   # @option return [String] :title 記事タイトル
   # @option return [String] :url 記事URL
@@ -55,8 +56,16 @@ class HatenaBlogUpdater
   # @option return [String] :published 投稿日時
   # @raise [RuntimeError] 記事が見つからない場合
   # @raise [RuntimeError] APIリクエストが失敗した場合
-  def update_entry(entry_url_or_id:, title:, content:, draft: false, categories: [], updated: nil)
+  def update_entry(entry_url_or_id:, title:, content:, draft: false, categories: [], updated: nil, preserve: false)
     entry_id = resolve_entry_id(entry_url_or_id)
+
+    # --preserve 指定時、既存情報を取得してマージ
+    if preserve && (categories.empty? || updated.nil?)
+      existing = fetch_existing_entry(entry_id)
+      categories = existing[:categories] if categories.empty?
+      updated ||= existing[:updated]
+    end
+
     entry_api_url = "#{api_endpoint}/#{entry_id}"
 
     xml_body = build_entry_xml(title, content, draft, categories, updated)
@@ -64,7 +73,45 @@ class HatenaBlogUpdater
     parse_response(response.body)
   end
 
+  # 既存記事を取得する
+  #
+  # @param entry_id [String] エントリーID
+  # @return [Hash] 既存記事情報
+  # @option return [Array<String>] :categories カテゴリの配列
+  # @option return [String] :updated 投稿日時（ISO8601形式）
+  def fetch_existing_entry(entry_id)
+    entry_api_url = "#{api_endpoint}/#{entry_id}"
+    response = get_with_wsse_auth(entry_api_url)
+    parse_existing_entry(response.body)
+  end
+
   private
+
+  # 既存記事のXMLをパースする
+  #
+  # @param xml_body [String] XMLレスポンス本文
+  # @return [Hash] 既存記事情報
+  def parse_existing_entry(xml_body)
+    doc = REXML::Document.new(xml_body)
+    entry = doc.root
+    {
+      categories: extract_categories(entry),
+      updated: entry.elements["updated"]&.text
+    }
+  end
+
+  # XMLエントリからカテゴリを抽出する
+  #
+  # @param entry [REXML::Element] 記事のXML要素
+  # @return [Array<String>] カテゴリの配列
+  def extract_categories(entry)
+    categories = []
+    entry.elements.each("category") do |cat|
+      term = cat.attributes["term"]
+      categories << term if term
+    end
+    categories
+  end
 
   # 認証情報の存在を検証する
   #
@@ -508,7 +555,8 @@ class HatenaBlogUpdater
         content: content,
         draft: draft,
         categories: options[:categories] || [],
-        updated: options[:updated]
+        updated: options[:updated],
+        preserve: options[:preserve] || false
       )
       output_result(result, draft)
     rescue StandardError => e
@@ -581,6 +629,10 @@ class HatenaBlogUpdater
 
       opts.on("--updated DATETIME", "投稿日時（ISO8601形式）") do |datetime|
         options[:updated] = datetime
+      end
+
+      opts.on("--preserve", "未指定のカテゴリ・投稿日時を既存値で保持") do
+        options[:preserve] = true
       end
     end
 

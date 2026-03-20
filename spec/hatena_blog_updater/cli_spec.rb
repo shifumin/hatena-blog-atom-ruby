@@ -67,7 +67,8 @@ RSpec.describe HatenaBlogUpdater::CLI do
             content: include("Updated Content"),
             draft: true,
             categories: [],
-            updated: nil
+            updated: nil,
+            preserve: false
           )
           .and_return(update_result)
 
@@ -97,7 +98,8 @@ RSpec.describe HatenaBlogUpdater::CLI do
             content: include("Updated Content"),
             draft: true,
             categories: [],
-            updated: nil
+            updated: nil,
+            preserve: false
           )
           .and_return(update_result)
 
@@ -125,7 +127,8 @@ RSpec.describe HatenaBlogUpdater::CLI do
             content: include("Updated Content"),
             draft: false,
             categories: [],
-            updated: nil
+            updated: nil,
+            preserve: false
           )
           .and_return(update_result)
 
@@ -167,7 +170,8 @@ RSpec.describe HatenaBlogUpdater::CLI do
             content: include("Updated Content"),
             draft: true,
             categories: %w[Ruby API],
-            updated: nil
+            updated: nil,
+            preserve: false
           )
           .and_return(update_result)
 
@@ -182,7 +186,8 @@ RSpec.describe HatenaBlogUpdater::CLI do
             content: include("Updated Content"),
             draft: true,
             categories: %w[Ruby API Programming],
-            updated: nil
+            updated: nil,
+            preserve: false
           )
           .and_return(update_result)
 
@@ -205,13 +210,36 @@ RSpec.describe HatenaBlogUpdater::CLI do
             content: include("Updated Content"),
             draft: true,
             categories: [],
-            updated: custom_time
+            updated: custom_time,
+            preserve: false
           )
           .and_return(update_result)
 
         capture_stdout do
           cli.run(["-i", entry_id, "-t", "Updated Title", "-f", temp_file.path, "--updated", custom_time])
         end
+      end
+    end
+
+    context "with --preserve option" do
+      before do
+        allow_any_instance_of(HatenaBlogUpdater).to receive(:update_entry).and_return(update_result)
+      end
+
+      it "calls update_entry with preserve: true" do
+        expect_any_instance_of(HatenaBlogUpdater).to receive(:update_entry)
+          .with(
+            entry_url_or_id: entry_id,
+            title: "Updated Title",
+            content: include("Updated Content"),
+            draft: true,
+            categories: [],
+            updated: nil,
+            preserve: true
+          )
+          .and_return(update_result)
+
+        capture_stdout { cli.run(["-i", entry_id, "-t", "Updated Title", "-f", temp_file.path, "--preserve"]) }
       end
     end
 
