@@ -7,7 +7,7 @@ Ruby scripts for fetching, posting, and updating blog entries on Hatena Blog usi
 ## Features
 
 ### Fetcher (`hatena_blog_fetcher.rb`)
-- Fetch blog posts by URL (date-based or entry ID format)
+- Fetch blog posts by URL (date-based, entry ID, or edit URL format)
 - Extract metadata: title, content, categories, draft status, entry ID
 - Multiple output formats (full, raw markdown, title, datetime, URL)
 - Time tolerance matching for date-based URLs (±1 hour)
@@ -86,6 +86,7 @@ ruby hatena_blog_fetcher.rb [OPTIONS] URL
 
 - Date-based: `https://example.hatenablog.com/entry/2024/01/01/123456`
 - Entry ID: `https://example.hatenablog.com/entry/20240101/1234567890`
+- Edit URL: `https://blog.hatena.ne.jp/{user}/{blog}/edit?entry={entry_id}` (admin URL — entry ID is read from the `entry` query parameter)
 
 #### Examples
 

@@ -152,6 +152,30 @@ RSpec.describe HatenaBlogUpdater do
       end
     end
 
+    context "when updating with edit URL" do
+      let(:edit_url) { "https://blog.hatena.ne.jp/test-user/test-blog.hatenablog.com/edit?entry=#{entry_id}" }
+
+      before do
+        stub_request(:put, entry_api_url)
+          .with(headers: { "X-WSSE" => /UsernameToken/ })
+          .to_return(status: 200, body: sample_response, headers: { "Content-Type" => "application/atom+xml" })
+      end
+
+      it "extracts entry ID from query parameter and updates" do
+        result = perform_update(url_or_id: edit_url, title: "Updated Title")
+        expect(result[:title]).to eq("Updated Article Title")
+      end
+    end
+
+    context "when updating with edit URL missing entry parameter" do
+      let(:edit_url_without_entry) { "https://blog.hatena.ne.jp/test-user/test-blog.hatenablog.com/edit" }
+
+      it "raises ArgumentError" do
+        expect { perform_update(url_or_id: edit_url_without_entry) }
+          .to raise_error(ArgumentError, /編集URLにentryパラメータがありません/)
+      end
+    end
+
     context "when updating with date-based URL" do
       let(:date_based_url) { "https://test-blog.hatenablog.com/entry/2024/01/01/123456" }
       let(:entry_list_response) do

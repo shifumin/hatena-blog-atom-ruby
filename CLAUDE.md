@@ -70,7 +70,7 @@ mise exec -- ruby hatena_blog_poster.rb -t "Title" -f content.md -p   # Publish 
 # Update by entry ID (defaults to draft)
 mise exec -- ruby hatena_blog_updater.rb -i ENTRY_ID -t "Title" -f content.md
 
-# Update by URL (date-based or entry-ID URL accepted)
+# Update by URL (date-based, entry-ID, or edit URL accepted)
 mise exec -- ruby hatena_blog_updater.rb -u URL -t "Title" -f content.md
 
 # Update and publish
@@ -143,6 +143,7 @@ Custom SSL certificate verification for secure API connections:
 Supported URL formats:
 1. Date-based URLs: `/entry/YYYY/MM/DD/HHMMSS`
 2. Entry ID URLs: `/entry/YYYYMMDD/1234567890`
+3. Edit URLs: `https://blog.hatena.ne.jp/{user}/{blog}/edit?entry={entry_id}` (Hatena admin URL — `extract_entry_id` reads the entry ID from the `entry` query parameter; supported by both `hatena_blog_fetcher.rb` and `hatena_blog_updater.rb`)
 
 For date-based URLs, scripts paginate through the entry list and pick the best match using a scoring function:
 - Exact date match is preferred; otherwise the closest date is used.

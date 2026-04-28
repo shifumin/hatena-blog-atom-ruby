@@ -131,19 +131,29 @@ class HatenaBlogFetcher
   #
   # @param url [String] 記事URL
   # @return [String] エントリーID
-  # @raise [ArgumentError] 無効なURL形式の場合
+  # @raise [ArgumentError] 無効なURL形式または編集URLにentryパラメータがない場合
   def extract_entry_id(url)
     # URLパターン例:
-    # https://your-subdomain.hatenablog.com/entry/2024/01/01/123456
-    # https://your-subdomain.hatenablog.com/entry/20240101/1234567890
+    # 公開URL: https://your-subdomain.hatenablog.com/entry/2024/01/01/123456
+    # 公開URL: https://your-subdomain.hatenablog.com/entry/20240101/1234567890
+    # 編集URL: https://blog.hatena.ne.jp/{user}/{blog}/edit?entry={id}
 
     uri = URI.parse(url)
-    path_parts = uri.path.split("/")
 
+    # 編集URLの場合はクエリパラメータからエントリーIDを取得
+    if uri.host == "blog.hatena.ne.jp" && uri.path.end_with?("/edit")
+      query = URI.decode_www_form(uri.query.to_s).to_h
+      entry_id = query["entry"]
+      raise ArgumentError, "編集URLにentryパラメータがありません: #{url}" if entry_id.nil? || entry_id.empty?
+
+      return entry_id
+    end
+
+    # 公開URLの場合は /entry/ 以降をIDとする
+    path_parts = uri.path.split("/")
     entry_index = path_parts.index("entry")
     raise ArgumentError, "無効なURLです: #{url}" unless entry_index
 
-    # entry以降のパスを結合してIDとする
     path_parts[(entry_index + 1)..].join("/")
   end
 

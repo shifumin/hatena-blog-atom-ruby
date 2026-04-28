@@ -73,6 +73,32 @@ RSpec.describe HatenaBlogFetcher do
       end
     end
 
+    context "with edit URL" do
+      let(:entry_url) { "https://blog.hatena.ne.jp/test-user/test-blog.hatenablog.com/edit?entry=1234567890" }
+      let(:entry_api_url) { "#{api_endpoint}/1234567890" }
+
+      before do
+        stub_request(:get, entry_api_url)
+          .with(headers: { "Accept" => "application/atom+xml", "X-WSSE" => /UsernameToken/ })
+          .to_return(status: 200, body: sample_atom_response, headers: { "Content-Type" => "application/atom+xml" })
+      end
+
+      it "extracts entry ID from query parameter and fetches the entry" do
+        result = fetcher.fetch_entry(entry_url)
+
+        expect(result[:title]).to eq("Test Article Title")
+        expect(result[:url]).to eq("https://test-blog.hatenablog.com/entry/2024/01/01/123456")
+      end
+    end
+
+    context "with edit URL missing entry parameter" do
+      let(:entry_url) { "https://blog.hatena.ne.jp/test-user/test-blog.hatenablog.com/edit" }
+
+      it "raises ArgumentError" do
+        expect { fetcher.fetch_entry(entry_url) }.to raise_error(ArgumentError, /編集URLにentryパラメータがありません/)
+      end
+    end
+
     context "with date-based URL" do
       let(:entry_url) { "https://test-blog.hatenablog.com/entry/2024/01/01/123456" }
       let(:list_response) do
