@@ -10,7 +10,7 @@ Ruby scripts for fetching, posting, and updating blog entries on Hatena Blog usi
 - Fetch blog posts by URL (date-based, entry ID, or edit URL format)
 - Extract metadata: title, content, categories, draft status, entry ID
 - Multiple output formats (full, raw markdown, title, datetime, URL)
-- Time tolerance matching for date-based URLs (±1 hour)
+- Date-based URL search prefers URL-exact match; falls back to ±1 hour time tolerance with a stderr warning
 
 ### Poster (`hatena_blog_poster.rb`)
 - Post new blog entries from Markdown files
