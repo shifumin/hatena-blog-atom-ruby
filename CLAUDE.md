@@ -146,11 +146,12 @@ Supported URL formats:
 3. Edit URLs: `https://blog.hatena.ne.jp/{user}/{blog}/edit?entry={entry_id}` (Hatena admin URL — `extract_entry_id` reads the entry ID from the `entry` query parameter; supported by both `hatena_blog_fetcher.rb` and `hatena_blog_updater.rb`)
 
 For date-based URLs, scripts paginate through the entry list and pick the best match using a scoring function:
-- Exact date match is preferred; otherwise the closest date is used.
-- Time component (HHMMSS) is compared against the entry's apparent publish time, with a **±1 hour tolerance** to absorb timezone/skew.
-- Pagination follows the Atom `link rel="next"` until either the entry is found or pages run out.
+- **URL exact match** (the entry's `link rel="alternate"` href contains `/entry/{target_path}`) is the only path that returns immediately. Identified by `:url_exact => true` in the candidate hash.
+- Otherwise: time component (HHMMSS) is compared against the entry's `published` time, with a **±1 hour tolerance**, and date difference must be within **±7 days**. The lowest score (smaller = better match) is used as a fallback only when no URL-exact match exists across all paginated pages.
+- When the fallback path is taken, a warning is emitted to **stderr** ("警告: URL完全一致なし") so callers can detect approximate matches.
+- Pagination follows the Atom `link rel="next"` until either a URL-exact entry is found, pages run out, or `max_pages` (100) is reached.
 
-The scoring helpers live in `find_matching_entries_in_page`, `calculate_entry_match_score`, `calculate_date_diff`, and `calculate_time_diff` in both `hatena_blog_fetcher.rb` and `hatena_blog_updater.rb`.
+The scoring helpers live in `find_matching_entries_in_page`, `calculate_entry_match_score`, `calculate_date_diff`, and `calculate_time_diff` in both `hatena_blog_fetcher.rb` and `hatena_blog_updater.rb`. Both `calculate_entry_match_score` return `{ score: Integer, url_exact: Boolean }` (or `nil` when out of range) — adding new criteria means extending this hash, not the integer-only score.
 
 ### Key Components
 

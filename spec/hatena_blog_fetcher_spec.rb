@@ -108,6 +108,7 @@ RSpec.describe HatenaBlogFetcher do
             <link rel="next" href="https://blog.hatena.ne.jp/test-user/test-blog.hatenablog.com/atom/entry?page=2"/>
             <entry>
               <id>tag:blog.hatena.ne.jp,2013:blog-test-user-17680117126972923446-13574176438046791234</id>
+              <link rel="alternate" type="text/html" href="https://test-blog.hatenablog.com/entry/2024/01/01/123456"/>
               <published>2024-01-01T12:34:56+09:00</published>
               <title>Test Article Title</title>
             </entry>
@@ -153,6 +154,125 @@ RSpec.describe HatenaBlogFetcher do
 
       it "raises an error" do
         expect { fetcher.fetch_entry(entry_url) }.to raise_error(/記事が見つかりませんでした/)
+      end
+    end
+
+    # 回帰テスト: published 日時が target と偶然一致する別記事が、
+    # URL完全一致の記事（後続ページ）より優先されてはならない
+    # https://github.com/shifumin/hatena-blog-atom-ruby/issues/<TBD>
+    context "when another entry's published time coincides with the target time" do
+      let(:entry_url) { "https://test-blog.hatenablog.com/entry/2024/03/15/120000" }
+      let(:list_response_first_page) do
+        # 別記事(ID=8888)の published が 2024-03-15T12:00:00 (target と完全一致)
+        # alternate href は別の URL を指している
+        <<~XML
+          <?xml version="1.0" encoding="utf-8"?>
+          <feed xmlns="http://www.w3.org/2005/Atom">
+            <link rel="next" href="https://blog.hatena.ne.jp/test-user/test-blog.hatenablog.com/atom/entry?page=2"/>
+            <entry>
+              <id>tag:blog.hatena.ne.jp,2013:blog-test-user-17680117126972923446-8888</id>
+              <link rel="alternate" type="text/html" href="https://test-blog.hatenablog.com/entry/2024/03/14/120000"/>
+              <published>2024-03-15T12:00:00+09:00</published>
+              <title>Coincidental Time Article</title>
+            </entry>
+          </feed>
+        XML
+      end
+      let(:list_response_second_page) do
+        # 本命記事(ID=9999) は2ページ目にあり、URL完全一致 (/2024/03/15/120000)
+        # published 時刻は target と乖離 (2024-04-01T08:00:00) しているのでスコア計算では候補外
+        <<~XML
+          <?xml version="1.0" encoding="utf-8"?>
+          <feed xmlns="http://www.w3.org/2005/Atom">
+            <entry>
+              <id>tag:blog.hatena.ne.jp,2013:blog-test-user-17680117126972923446-9999</id>
+              <link rel="alternate" type="text/html" href="https://test-blog.hatenablog.com/entry/2024/03/15/120000"/>
+              <published>2024-04-01T08:00:00+09:00</published>
+              <title>True Target Article</title>
+            </entry>
+          </feed>
+        XML
+      end
+      let(:detail_response) do
+        <<~XML
+          <?xml version="1.0" encoding="utf-8"?>
+          <entry xmlns="http://www.w3.org/2005/Atom"
+                 xmlns:app="http://www.w3.org/2007/app">
+            <id>tag:blog.hatena.ne.jp,2013:blog-test-user-17680117126972923446-9999</id>
+            <link rel="alternate" type="text/html" href="https://test-blog.hatenablog.com/entry/2024/03/15/120000"/>
+            <title>True Target Article</title>
+            <published>2024-04-01T08:00:00+09:00</published>
+            <content type="text/x-markdown">True target body</content>
+            <app:control><app:draft>no</app:draft></app:control>
+          </entry>
+        XML
+      end
+
+      before do
+        atom_xml_headers = { "Content-Type" => "application/atom+xml" }
+        stub_request(:get, api_endpoint)
+          .with(headers: { "Accept" => "application/atom+xml", "X-WSSE" => /UsernameToken/ })
+          .to_return(status: 200, body: list_response_first_page, headers: atom_xml_headers)
+
+        stub_request(:get, "#{api_endpoint}?page=2")
+          .with(headers: { "Accept" => "application/atom+xml", "X-WSSE" => /UsernameToken/ })
+          .to_return(status: 200, body: list_response_second_page, headers: atom_xml_headers)
+
+        stub_request(:get, "#{api_endpoint}/9999")
+          .with(headers: { "Accept" => "application/atom+xml", "X-WSSE" => /UsernameToken/ })
+          .to_return(status: 200, body: detail_response, headers: atom_xml_headers)
+      end
+
+      it "prefers URL-exact match over coincidental published-time match" do
+        result = fetcher.fetch_entry(entry_url)
+        expect(result[:title]).to eq("True Target Article")
+        expect(result[:url]).to eq("https://test-blog.hatenablog.com/entry/2024/03/15/120000")
+      end
+    end
+
+    # 回帰テスト: URL完全一致なしのフォールバック時に警告を出す
+    context "when only approximate match exists (no URL-exact)" do
+      let(:entry_url) { "https://test-blog.hatenablog.com/entry/2024/03/15/120000" }
+      let(:list_response) do
+        <<~XML
+          <?xml version="1.0" encoding="utf-8"?>
+          <feed xmlns="http://www.w3.org/2005/Atom">
+            <entry>
+              <id>tag:blog.hatena.ne.jp,2013:blog-test-user-17680117126972923446-7777</id>
+              <link rel="alternate" type="text/html" href="https://test-blog.hatenablog.com/entry/2024/03/15/120030"/>
+              <published>2024-03-15T12:00:30+09:00</published>
+              <title>Approximate Article</title>
+            </entry>
+          </feed>
+        XML
+      end
+      let(:detail_response) do
+        <<~XML
+          <?xml version="1.0" encoding="utf-8"?>
+          <entry xmlns="http://www.w3.org/2005/Atom"
+                 xmlns:app="http://www.w3.org/2007/app">
+            <id>tag:blog.hatena.ne.jp,2013:blog-test-user-17680117126972923446-7777</id>
+            <link rel="alternate" type="text/html" href="https://test-blog.hatenablog.com/entry/2024/03/15/120030"/>
+            <title>Approximate Article</title>
+            <published>2024-03-15T12:00:30+09:00</published>
+            <content type="text/x-markdown">Approximate body</content>
+            <app:control><app:draft>no</app:draft></app:control>
+          </entry>
+        XML
+      end
+
+      before do
+        stub_request(:get, api_endpoint)
+          .with(headers: { "Accept" => "application/atom+xml", "X-WSSE" => /UsernameToken/ })
+          .to_return(status: 200, body: list_response, headers: { "Content-Type" => "application/atom+xml" })
+
+        stub_request(:get, "#{api_endpoint}/7777")
+          .with(headers: { "Accept" => "application/atom+xml", "X-WSSE" => /UsernameToken/ })
+          .to_return(status: 200, body: detail_response, headers: { "Content-Type" => "application/atom+xml" })
+      end
+
+      it "returns the approximate match and emits a warning to stderr" do
+        expect { fetcher.fetch_entry(entry_url) }.to output(/URL完全一致なし.*近似マッチ/).to_stderr
       end
     end
 

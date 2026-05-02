@@ -272,6 +272,75 @@ RSpec.describe HatenaBlogUpdater do
       end
     end
 
+    # 回帰テスト: published 日時が target と偶然一致する別記事が、
+    # URL完全一致の記事（後続ページ）より優先されてはならない
+    context "when another entry's published time coincides with target time (date-based URL)" do
+      let(:date_based_url) { "https://test-blog.hatenablog.com/entry/2024/03/15/120000" }
+      let(:list_response_first_page) do
+        <<~XML
+          <?xml version="1.0" encoding="utf-8"?>
+          <feed xmlns="http://www.w3.org/2005/Atom">
+            <link rel="next" href="https://blog.hatena.ne.jp/test-user/test-blog.hatenablog.com/atom/entry?page=2"/>
+            <entry>
+              <id>tag:blog.hatena.ne.jp,2013:blog-test-user-17680117126972923446-8888</id>
+              <link rel="alternate" type="text/html" href="https://test-blog.hatenablog.com/entry/2024/03/14/120000"/>
+              <published>2024-03-15T12:00:00+09:00</published>
+              <title>Coincidental Time Article</title>
+            </entry>
+          </feed>
+        XML
+      end
+      let(:list_response_second_page) do
+        <<~XML
+          <?xml version="1.0" encoding="utf-8"?>
+          <feed xmlns="http://www.w3.org/2005/Atom">
+            <entry>
+              <id>tag:blog.hatena.ne.jp,2013:blog-test-user-17680117126972923446-9999</id>
+              <link rel="alternate" type="text/html" href="https://test-blog.hatenablog.com/entry/2024/03/15/120000"/>
+              <published>2024-04-01T08:00:00+09:00</published>
+              <title>True Target Article</title>
+            </entry>
+          </feed>
+        XML
+      end
+      let(:put_response) do
+        <<~XML
+          <?xml version="1.0" encoding="utf-8"?>
+          <entry xmlns="http://www.w3.org/2005/Atom"
+                 xmlns:app="http://www.w3.org/2007/app">
+            <id>tag:blog.hatena.ne.jp,2013:blog-test-user-17680117126972923446-9999</id>
+            <link rel="edit" href="https://blog.hatena.ne.jp/test-user/test-blog.hatenablog.com/atom/entry/9999"/>
+            <link rel="alternate" type="text/html" href="https://test-blog.hatenablog.com/entry/2024/03/15/120000"/>
+            <title>True Target Article</title>
+            <published>2024-04-01T08:00:00+09:00</published>
+            <content type="text/x-markdown">True target body</content>
+            <app:control><app:draft>no</app:draft></app:control>
+          </entry>
+        XML
+      end
+
+      before do
+        atom_xml_headers = { "Content-Type" => "application/atom+xml" }
+        stub_request(:get, api_endpoint)
+          .with(headers: { "X-WSSE" => /UsernameToken/ })
+          .to_return(status: 200, body: list_response_first_page, headers: atom_xml_headers)
+
+        stub_request(:get, "#{api_endpoint}?page=2")
+          .with(headers: { "X-WSSE" => /UsernameToken/ })
+          .to_return(status: 200, body: list_response_second_page, headers: atom_xml_headers)
+
+        stub_request(:put, "#{api_endpoint}/9999")
+          .with(headers: { "X-WSSE" => /UsernameToken/ })
+          .to_return(status: 200, body: put_response, headers: atom_xml_headers)
+      end
+
+      it "updates the URL-exact match entry, not the coincidental published-time entry" do
+        result = perform_update(url_or_id: date_based_url, title: "Updated Title")
+        expect(result[:title]).to eq("True Target Article")
+        expect(WebMock).to have_requested(:put, "#{api_endpoint}/9999")
+      end
+    end
+
     context "when date-based URL entry is not found" do
       let(:date_based_url) { "https://test-blog.hatenablog.com/entry/2024/01/01/999999" }
       let(:empty_response) { "<?xml version=\"1.0\"?>\n<feed xmlns=\"http://www.w3.org/2005/Atom\"></feed>" }

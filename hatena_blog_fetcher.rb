@@ -246,17 +246,20 @@ class HatenaBlogFetcher
       page_candidates = find_matching_entries_in_page(doc, target_date, time_part)
       candidates.concat(page_candidates)
 
-      # 完全一致があれば即座に返す
-      perfect_match = candidates.find { |c| c[:score].zero? }
-      return perfect_match[:entry_id] if perfect_match
+      # URL完全一致があれば即座に返す
+      url_exact = candidates.find { |c| c[:url_exact] }
+      return url_exact[:entry_id] if url_exact
 
       next_url = get_next_page_url(doc)
     end
 
-    # 最もスコアが低い（最も一致度が高い）候補を返す
+    # 最もスコアが低い（最も一致度が高い）候補をフォールバックとして返す
     return nil if candidates.empty?
 
     best_candidate = candidates.min_by { |c| c[:score] }
+    warn "警告: URL完全一致なし。近似マッチを返却します: " \
+         "target=#{target_date}/#{time_part}, " \
+         "fallback_title=#{best_candidate[:title]}, score=#{best_candidate[:score]}"
     best_candidate[:entry_id]
   end
 
@@ -265,30 +268,37 @@ class HatenaBlogFetcher
   # @param doc [REXML::Document] XMLドキュメント
   # @param target_date [String] 検索対象の日付（YYYY-MM-DD形式）
   # @param time_part [String] 検索対象の時刻（HHMMSS形式）
-  # @return [Array<Hash>] 候補記事の配列（entry_id, score, titleを含む）
+  # @return [Array<Hash>] 候補記事の配列（entry_id, score, url_exact, titleを含む）
   def find_matching_entries_in_page(doc, target_date, time_part)
     candidates = []
     doc.elements.each("feed/entry") do |entry|
-      score = calculate_entry_match_score(entry, target_date, time_part)
-      next if score.nil?
+      match = calculate_entry_match_score(entry, target_date, time_part)
+      next if match.nil?
 
       entry_id = extract_entry_id_from_element(entry)
       next unless entry_id
 
       title = entry.elements["title"]&.text || ""
-      candidates << { entry_id: entry_id, score: score, title: title }
+      candidates << {
+        entry_id: entry_id,
+        score: match[:score],
+        url_exact: match[:url_exact],
+        title: title
+      }
     end
     candidates
   end
 
   # 記事のマッチスコアを計算する
   #
-  # スコアが低いほど一致度が高い。完全一致は0を返す。
+  # スコアが低いほど一致度が高い。URL完全一致は :url_exact => true を返す。
+  # published の日時が target と偶然一致しただけのケースを完全一致と誤認しないよう、
+  # URL完全一致と近似マッチを別フィールドで区別する。
   #
   # @param entry [REXML::Element] 記事のXML要素
   # @param target_date [String] 検索対象の日付（YYYY-MM-DD形式）
   # @param time_part [String] 検索対象の時刻（HHMMSS形式）
-  # @return [Integer, nil] マッチスコア、候補外の場合はnil
+  # @return [Hash, nil] :score (Integer) と :url_exact (Boolean) を含むHash、候補外の場合はnil
   def calculate_entry_match_score(entry, target_date, time_part)
     published = entry.elements["published"]&.text
     return nil unless published
@@ -299,7 +309,7 @@ class HatenaBlogFetcher
     entry_url = extract_url_from_entry_element(entry)
     if entry_url&.include?("/entry/#{target_date.tr('-', '/')}/#{time_part}")
       # URLが完全に一致する場合は最優先
-      return 0
+      return { score: 0, url_exact: true }
     end
 
     # 日付の差を計算
@@ -311,7 +321,7 @@ class HatenaBlogFetcher
     return nil if time_diff > 3600 # 1時間（3600秒）を超える差がある場合は候補から除外
 
     # スコアを計算（低いほど良い）
-    (date_diff * 86_400) + time_diff # 日付の差を秒に換算して加算
+    { score: (date_diff * 86_400) + time_diff, url_exact: false }
   end
 
   # 日付の差を計算する
