@@ -2,7 +2,7 @@
 
 source "https://rubygems.org"
 
-ruby File.read(".ruby-version").strip if File.exist?(".ruby-version")
+ruby ">= 4.0"
 
 gem "base64"
 

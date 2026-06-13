@@ -1,3 +1,6 @@
+[tools]
+ruby = "4.0.5"
+
 [env]
 HATENA_ID = "your-hatena-id"
 HATENA_BLOG_ID = "your-subdomain.hatenablog.com"
