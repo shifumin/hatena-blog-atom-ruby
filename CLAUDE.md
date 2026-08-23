@@ -122,7 +122,7 @@ export HATENA_API_KEY='your-api-key-here'
 ```
 
 ### Ruby Version
-- See `.ruby-version` (managed by mise via `mise.toml`)
+- Ruby version is pinned in `mise.toml` (managed by mise)
 - `mise.toml` ships placeholder env values; put real credentials in `mise.local.toml` (gitignored) or export them in the shell
 
 ## Architecture & Code Structure

@@ -23,8 +23,8 @@ Ruby scripts for fetching, posting, and updating blog entries on Hatena Blog usi
 
 ## Prerequisites
 
-- [mise](https://mise.jdx.dev/) (recommended Ruby version manager — installs the version pinned in `.ruby-version`)
-- Ruby (see `.ruby-version`)
+- [mise](https://mise.jdx.dev/) (recommended Ruby version manager — installs the version pinned in `mise.toml`)
+- Ruby (see `mise.toml`)
 - Bundler (ships with the mise-managed Ruby)
 - Hatena Blog API credentials
 
@@ -33,11 +33,11 @@ Ruby scripts for fetching, posting, and updating blog entries on Hatena Blog usi
 ```bash
 git clone https://github.com/shifumin/hatena-blog-atom-ruby.git
 cd hatena-blog-atom-ruby
-mise install         # installs the Ruby version from .ruby-version
+mise install         # installs the Ruby version from mise.toml
 mise exec -- bundle install
 ```
 
-> If you don't use mise, plain `bundle install` works too — just make sure your active Ruby matches `.ruby-version`.
+> If you don't use mise, plain `bundle install` works too — just make sure your active Ruby matches the version in `mise.toml`.
 
 ## Configuration
 
