@@ -7,7 +7,7 @@ AllCops:
   NewCops: enable
   # 拡張機能の提案を無効化
   SuggestExtensions: false
-  TargetRubyVersion: 3.4
+  TargetRubyVersion: 4.0
 
 # Style用の設定
 
