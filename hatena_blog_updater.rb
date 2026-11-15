@@ -25,6 +25,8 @@ require "openssl"
 #
 # @see https://developer.hatena.ne.jp/ja/documents/blog/apis/atom
 class HatenaBlogUpdater
+  HATENABLOG_NS = "http://www.hatena.ne.jp/info/xmlns#hatenablog"
+
   # HatenaBlogUpdaterの新しいインスタンスを作成する
   #
   # @raise [ArgumentError] 必須の環境変数が設定されていない場合
@@ -49,6 +51,7 @@ class HatenaBlogUpdater
   # @param categories [Array<String>] カテゴリ（タグ）の配列（デフォルト: []）
   # @param updated [String, nil] 投稿日時（ISO8601形式、nilの場合は現在時刻）
   # @param preserve [Boolean] 未指定のカテゴリ・投稿日時を既存値で保持するか（デフォルト: false）
+  # @param scheduled [Boolean] 予約投稿として送るか（デフォルト: false）。draft: true と updated（公開予定時刻）を併せて指定する
   # @return [Hash] 更新結果
   # @option return [String] :title 記事タイトル
   # @option return [String] :url 記事URL
@@ -56,7 +59,8 @@ class HatenaBlogUpdater
   # @option return [String] :published 投稿日時
   # @raise [RuntimeError] 記事が見つからない場合
   # @raise [RuntimeError] APIリクエストが失敗した場合
-  def update_entry(entry_url_or_id:, title:, content:, draft: false, categories: [], updated: nil, preserve: false)
+  def update_entry(entry_url_or_id:, title:, content:, draft: false, categories: [], updated: nil, preserve: false,
+                   scheduled: false)
     entry_id = resolve_entry_id(entry_url_or_id)
 
     # --preserve 指定時、既存情報を取得してマージ
@@ -68,7 +72,7 @@ class HatenaBlogUpdater
 
     entry_api_url = "#{api_endpoint}/#{entry_id}"
 
-    xml_body = build_entry_xml(title, content, draft, categories, updated)
+    xml_body = build_entry_xml(title, content, draft, categories, updated, scheduled: scheduled)
     response = put_with_wsse_auth(entry_api_url, xml_body)
     parse_response(response.body)
   end
@@ -378,15 +382,17 @@ class HatenaBlogUpdater
   # @param content [String] 記事本文（Markdown）
   # @param draft [Boolean] 下書き状態にするか
   # @param categories [Array<String>] カテゴリ（タグ）の配列
-  # @param updated [String, nil] 投稿日時（ISO8601形式、nilの場合は現在時刻）
+  # @param updated [String, nil] 投稿日時（ISO8601形式、nilの場合は現在時刻）。予約投稿では公開予定時刻
+  # @param scheduled [Boolean] 予約投稿の印（hatenablog:scheduled）を付けるか
   # @return [String] XML文字列
-  def build_entry_xml(title, content, draft, categories = [], updated = nil)
+  def build_entry_xml(title, content, draft, categories = [], updated = nil, scheduled: false)
     doc = REXML::Document.new
     doc << REXML::XMLDecl.new("1.0", "utf-8")
 
     entry = doc.add_element("entry")
     entry.add_namespace("http://www.w3.org/2005/Atom")
     entry.add_namespace("app", "http://www.w3.org/2007/app")
+    entry.add_namespace("hatenablog", HATENABLOG_NS) if scheduled
 
     entry.add_element("title").add_text(title)
 
@@ -407,12 +413,25 @@ class HatenaBlogUpdater
     updated_time = updated || Time.now.utc.iso8601
     entry.add_element("updated").add_text(updated_time)
 
-    control = entry.add_element("app:control")
-    control.add_element("app:draft").add_text(draft ? "yes" : "no")
+    add_control_element(entry, draft, scheduled)
 
     output = +""
     doc.write(output)
     output
+  end
+
+  # app:control（下書き状態・予約投稿）を追加する
+  #
+  # 予約投稿は app:draft=yes のまま、hatenablog:scheduled と updated（公開予定時刻）で表す
+  #
+  # @param entry [REXML::Element] 記事のXML要素
+  # @param draft [Boolean] 下書き状態にするか
+  # @param scheduled [Boolean] 予約投稿の印を付けるか
+  # @return [void]
+  def add_control_element(entry, draft, scheduled)
+    control = entry.add_element("app:control")
+    control.add_element("app:draft").add_text(draft ? "yes" : "no")
+    control.add_element("hatenablog:scheduled").add_text("yes") if scheduled
   end
 
   # WSSE認証ヘッダーを生成する
@@ -582,7 +601,8 @@ class HatenaBlogUpdater
         draft: draft,
         categories: options[:categories] || [],
         updated: options[:updated],
-        preserve: options[:preserve] || false
+        preserve: options[:preserve] || false,
+        scheduled: options[:scheduled] || false
       )
       output_result(result, draft)
     rescue StandardError => e
@@ -649,6 +669,15 @@ class HatenaBlogUpdater
         options[:publish] = true
       end
 
+      define_meta_options(opts, options)
+    end
+
+    # カテゴリ・投稿日時・予約投稿に関するオプションを定義する
+    #
+    # @param opts [OptionParser] OptionParserインスタンス
+    # @param options [Hash] オプションを格納するハッシュ
+    # @return [void]
+    def define_meta_options(opts, options)
       opts.on("-c", "--categories CATEGORIES", "カテゴリ（カンマ区切り）") do |categories|
         options[:categories] = categories.split(",").map(&:strip)
       end
@@ -659,6 +688,10 @@ class HatenaBlogUpdater
 
       opts.on("--preserve", "未指定のカテゴリ・投稿日時を既存値で保持") do
         options[:preserve] = true
+      end
+
+      opts.on("--scheduled", "予約投稿として送る（下書きのまま、--updated を公開予定時刻にする）") do
+        options[:scheduled] = true
       end
     end
 
@@ -677,10 +710,19 @@ class HatenaBlogUpdater
 
       errors << "タイトル（-t）は必須です" unless options[:title]
       errors << "ファイル（-f）は必須です" unless options[:file]
+      errors << "--scheduled は --updated（公開予定時刻）が必要で、-p とは併用できません" if invalid_schedule?(options)
 
       return if errors.empty?
 
       raise ArgumentError, errors.join("\n")
+    end
+
+    # --scheduled の指定が不正か（公開予定時刻が無い、または公開指定と併用）
+    #
+    # @param options [Hash] パースされたオプション
+    # @return [Boolean]
+    def invalid_schedule?(options)
+      options[:scheduled] && (options[:updated].nil? || options[:publish])
     end
 
     # ファイルから本文を読み込む

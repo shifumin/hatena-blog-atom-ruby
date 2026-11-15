@@ -495,6 +495,33 @@ RSpec.describe HatenaBlogFetcher do
         end
       end
 
+      context "when entry is a scheduled draft" do
+        let(:scheduled_response) do
+          <<~XML
+            <entry xmlns="http://www.w3.org/2005/Atom"
+                   xmlns:app="http://www.w3.org/2007/app"
+                   xmlns:hatenablog="http://www.hatena.ne.jp/info/xmlns#hatenablog">
+              <title>T</title>
+              <updated>2030-01-01T20:00:00+09:00</updated>
+              <app:control>
+                <app:draft>yes</app:draft>
+                <hatenablog:scheduled>yes</hatenablog:scheduled>
+              </app:control>
+            </entry>
+          XML
+        end
+
+        before do
+          stub_request(:get, entry_api_url)
+            .to_return(status: 200, body: scheduled_response, headers: { "Content-Type" => "application/atom+xml" })
+        end
+
+        it "returns scheduled true and the updated time" do
+          result = fetcher.fetch_entry(entry_url)
+          expect(result).to include(draft: true, scheduled: true, updated: "2030-01-01T20:00:00+09:00")
+        end
+      end
+
       context "when draft element is missing" do
         let(:response_without_draft) do
           <<~XML

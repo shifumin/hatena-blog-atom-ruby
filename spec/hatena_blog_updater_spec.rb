@@ -36,7 +36,7 @@ RSpec.describe HatenaBlogUpdater do
 
     # Helper method for common update call
     def perform_update(url_or_id: entry_id, title: "Test", content: "Content", draft: false, categories: [],
-                       updated: nil, preserve: false)
+                       updated: nil, preserve: false, scheduled: false)
       updater.update_entry(
         entry_url_or_id: url_or_id,
         title: title,
@@ -44,7 +44,8 @@ RSpec.describe HatenaBlogUpdater do
         draft: draft,
         categories: categories,
         updated: updated,
-        preserve: preserve
+        preserve: preserve,
+        scheduled: scheduled
       )
     end
 
@@ -81,6 +82,32 @@ RSpec.describe HatenaBlogUpdater do
 
         expect(WebMock).to(have_requested(:put, entry_api_url)
           .with { |req| req.body.include?("<app:draft>yes</app:draft>") })
+      end
+    end
+
+    context "when updating with scheduled: true" do
+      before do
+        stub_request(:put, entry_api_url)
+          .with(headers: { "X-WSSE" => /UsernameToken/ })
+          .to_return(status: 200, body: sample_response, headers: { "Content-Type" => "application/atom+xml" })
+      end
+
+      it "keeps app:draft yes and adds hatenablog:scheduled with the schedule time" do
+        perform_update(draft: true, updated: "2030-01-01T20:00:00+09:00", scheduled: true)
+
+        expect(WebMock).to(have_requested(:put, entry_api_url).with do |req|
+          req.body.include?("xmlns:hatenablog='http://www.hatena.ne.jp/info/xmlns#hatenablog'") &&
+            req.body.include?("<app:draft>yes</app:draft>") &&
+            req.body.include?("<hatenablog:scheduled>yes</hatenablog:scheduled>") &&
+            req.body.include?("<updated>2030-01-01T20:00:00+09:00</updated>")
+        end)
+      end
+
+      it "omits hatenablog:scheduled by default" do
+        perform_update(draft: true)
+
+        expect(WebMock).to(have_requested(:put, entry_api_url)
+          .with { |req| !req.body.include?("scheduled") })
       end
     end
 

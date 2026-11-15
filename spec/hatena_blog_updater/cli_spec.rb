@@ -68,7 +68,8 @@ RSpec.describe HatenaBlogUpdater::CLI do
             draft: true,
             categories: [],
             updated: nil,
-            preserve: false
+            preserve: false,
+            scheduled: false
           )
           .and_return(update_result)
 
@@ -99,7 +100,8 @@ RSpec.describe HatenaBlogUpdater::CLI do
             draft: true,
             categories: [],
             updated: nil,
-            preserve: false
+            preserve: false,
+            scheduled: false
           )
           .and_return(update_result)
 
@@ -128,7 +130,8 @@ RSpec.describe HatenaBlogUpdater::CLI do
             draft: false,
             categories: [],
             updated: nil,
-            preserve: false
+            preserve: false,
+            scheduled: false
           )
           .and_return(update_result)
 
@@ -171,7 +174,8 @@ RSpec.describe HatenaBlogUpdater::CLI do
             draft: true,
             categories: %w[Ruby API],
             updated: nil,
-            preserve: false
+            preserve: false,
+            scheduled: false
           )
           .and_return(update_result)
 
@@ -187,7 +191,8 @@ RSpec.describe HatenaBlogUpdater::CLI do
             draft: true,
             categories: %w[Ruby API Programming],
             updated: nil,
-            preserve: false
+            preserve: false,
+            scheduled: false
           )
           .and_return(update_result)
 
@@ -204,20 +209,37 @@ RSpec.describe HatenaBlogUpdater::CLI do
       it "calls update_entry with updated datetime" do
         custom_time = "2024-12-31T12:00:00+09:00"
         expect_any_instance_of(HatenaBlogUpdater).to receive(:update_entry)
-          .with(
-            entry_url_or_id: entry_id,
-            title: "Updated Title",
-            content: include("Updated Content"),
-            draft: true,
-            categories: [],
-            updated: custom_time,
-            preserve: false
-          )
+          .with(hash_including(draft: true, updated: custom_time, scheduled: false))
           .and_return(update_result)
 
         capture_stdout do
           cli.run(["-i", entry_id, "-t", "Updated Title", "-f", temp_file.path, "--updated", custom_time])
         end
+      end
+    end
+
+    context "with --scheduled option" do
+      it "calls update_entry with scheduled: true and the updated datetime" do
+        when_time = "2030-01-01T20:00:00+09:00"
+        expect_any_instance_of(HatenaBlogUpdater).to receive(:update_entry)
+          .with(hash_including(draft: true, updated: when_time, scheduled: true))
+          .and_return(update_result)
+
+        capture_stdout do
+          cli.run(["-i", entry_id, "-t", "T", "-f", temp_file.path, "--updated", when_time, "--scheduled"])
+        end
+      end
+
+      it "exits with error without --updated" do
+        expect do
+          cli.run(["-i", entry_id, "-t", "T", "-f", temp_file.path, "--scheduled"])
+        end.to output(/--scheduled/).to_stderr.and raise_error(SystemExit)
+      end
+
+      it "exits with error together with --publish" do
+        args = ["-i", entry_id, "-t", "T", "-f", temp_file.path, "--updated", "2030-01-01T20:00:00+09:00",
+                "--scheduled", "-p"]
+        expect { cli.run(args) }.to output(/--scheduled/).to_stderr.and raise_error(SystemExit)
       end
     end
 
@@ -235,7 +257,8 @@ RSpec.describe HatenaBlogUpdater::CLI do
             draft: true,
             categories: [],
             updated: nil,
-            preserve: true
+            preserve: true,
+            scheduled: false
           )
           .and_return(update_result)
 

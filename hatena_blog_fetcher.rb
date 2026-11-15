@@ -454,6 +454,8 @@ class HatenaBlogFetcher
       url: extract_url_from_entry(entry),
       categories: extract_categories_from_entry(entry),
       draft: draft_entry?(entry),
+      scheduled: scheduled_entry?(entry),
+      updated: entry.elements["updated"]&.text,
       entry_id: extract_entry_id_from_entry(entry)
     }
   end
@@ -529,6 +531,17 @@ class HatenaBlogFetcher
   def draft_entry?(entry)
     draft_element = entry.elements["app:control/app:draft"]
     draft_element&.text == "yes"
+  end
+
+  # 記事が予約投稿かを判定する（app:control 内の hatenablog:scheduled）
+  #
+  # 名前空間の宣言有無に左右されないよう、ローカル名で探す
+  #
+  # @param entry [REXML::Element] 記事のXML要素
+  # @return [Boolean] 予約投稿の場合true
+  def scheduled_entry?(entry)
+    scheduled = REXML::XPath.first(entry, "app:control/*[local-name()='scheduled']")
+    scheduled&.text == "yes"
   end
 
   # 記事からエントリIDを抽出する
@@ -713,6 +726,8 @@ class HatenaBlogFetcher
       puts "エントリID: #{entry_data[:entry_id]}"
       puts "カテゴリ: #{format_categories(entry_data[:categories])}"
       puts "状態: #{entry_data[:draft] ? '下書き' : '公開済み'}"
+      puts "予約投稿: #{entry_data[:scheduled] ? 'yes' : 'no'}"
+      puts "更新日時: #{entry_data[:updated]}"
       puts "=" * 60
       puts "本文（Markdown）:"
       puts "-" * 60
